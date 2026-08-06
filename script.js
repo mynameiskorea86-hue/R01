@@ -4,7 +4,7 @@ function normalizeRole(role) {
   if (role === '관리자') return 'admin';
   if (role === '지휘자') return 'commander';
   if (role === '간부') return 'officer';
-  if (role === '용사') return 'user';
+  if (role === '용사' || role === '일반사용자' || role === '일반 사용자') return 'user';
   return role;
 }
 
