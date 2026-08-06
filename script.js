@@ -22,10 +22,13 @@ const registerCard = document.getElementById('registerCard');
 const showRegisterBtn = document.getElementById('showRegisterBtn');
 
 function showScreen(screen) {
-  authScreen.classList.remove('active');
-  homeScreen.classList.remove('active');
-  detailScreen.classList.remove('active');
+  const screens = [authScreen, homeScreen, detailScreen];
+  screens.forEach((item) => {
+    item.classList.remove('active');
+    item.style.display = 'none';
+  });
   screen.classList.add('active');
+  screen.style.display = 'flex';
 }
 
 function saveState() {
@@ -606,6 +609,7 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const milNumber = document.getElementById('loginMilNumber').value.trim();
   const found = state.users.find((user) => user.milNumber === milNumber);
+
   if (!found) {
     alert('가입된 계정이 없습니다.');
     return;
@@ -614,8 +618,12 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
     alert('전역일자가 지나 접속할 수 없습니다.');
     return;
   }
+
   state.user = found;
   setAuthState();
+  showScreen(homeScreen);
+  homeScreen.scrollTop = 0;
+  logoutBtn.classList.remove('hidden');
   alert('로그인 되었습니다.');
 });
 
