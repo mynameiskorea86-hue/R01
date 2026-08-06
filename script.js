@@ -152,7 +152,7 @@ function renderLeaveDetail() {
   approvalList.appendChild(list);
   detailContent.appendChild(approvalList);
 
-  if (state.user.role === 'user' || state.user.role === 'officer') {
+  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
     document.getElementById('requestLeaveBtn').addEventListener('click', () => {
       const type = document.getElementById('leaveType').value;
       const region = document.getElementById('leaveRegion').value;
@@ -203,7 +203,7 @@ function renderLetterDetail() {
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>대장과의 대화 목록</h3>';
   const visibleLetters = state.letters.filter((item) => {
-    if (state.user.role === 'commander') return true;
+    if (['commander', 'admin'].includes(state.user.role)) return true;
     return item.author === state.user.milNumber;
   });
 
@@ -234,7 +234,7 @@ function renderLetterDetail() {
 function renderBarberDetail() {
   detailTitle.textContent = '이발소 신청';
   detailContent.innerHTML = '';
-  if (state.user.role === 'user' || state.user.role === 'officer') {
+  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
     detailContent.innerHTML = `
       <label>예약일
         <input type="date" id="barberDate" />
@@ -302,7 +302,7 @@ function renderBarberDetail() {
 function renderSuggestionDetail() {
   detailTitle.textContent = '건의사항';
   detailContent.innerHTML = '';
-  if (state.user.role === 'user' || state.user.role === 'officer') {
+  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
     detailContent.innerHTML = `
       <label>제목
         <input type="text" id="suggestionTitle" placeholder="예: 식당 개선 요청" />
