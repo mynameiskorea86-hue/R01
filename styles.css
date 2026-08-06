@@ -35,7 +35,8 @@ body {
 }
 .phone-frame {
   width: min(420px, 100%);
-  max-height: calc(100vh - 28px);
+  height: calc(100vh - 28px);
+  max-height: 840px;
   border-radius: 48px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -62,9 +63,12 @@ body {
   flex: 1;
   min-height: 0;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 18px;
+  scroll-padding-bottom: 18px;
 }
 .screen.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 .topbar {
   display: flex;
