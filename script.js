@@ -22,7 +22,7 @@ const DEFAULT_ADMIN = {
   role: 'admin',
   enlistDate: '',
   dischargeDate: '',
-  password: 'admin123'
+  password: 'admin1234'
 };
 
 function canManageNotices() {
@@ -47,7 +47,9 @@ function ensureDefaultAdmin() {
   if (!hasAdmin) {
     const existingAdmin = state.users.find((user) => normalizeRole(user.role) === 'admin');
     if (existingAdmin) {
-      existingAdmin.password = existingAdmin.password || DEFAULT_ADMIN.password;
+      if (!existingAdmin.password || existingAdmin.password === 'admin123') {
+        existingAdmin.password = DEFAULT_ADMIN.password;
+      }
       existingAdmin.name = existingAdmin.name || DEFAULT_ADMIN.name;
       existingAdmin.birthDate = existingAdmin.birthDate || DEFAULT_ADMIN.birthDate;
       existingAdmin.unitCode = existingAdmin.unitCode || DEFAULT_ADMIN.unitCode;
