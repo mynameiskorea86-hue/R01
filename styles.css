@@ -435,10 +435,44 @@ button { cursor: pointer; font-weight: 700; }
   .ghost-btn {
     margin-top: 10px;
   }
-  #homeScreen {
-    overflow: hidden;
-  }
   .inline-row {
     flex-direction: column;
+  }
+  #authScreen {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow: hidden;
+  }
+  #authScreen .card:last-child {
+    display: none;
+  }
+  #authScreen .card {
+    flex: 1 1 auto;
+    min-height: auto;
+  }
+  #authScreen .card:first-child {
+    padding-bottom: 18px;
+  }
+  #authScreen .card:last-child {
+    margin-top: 0;
+  }
+  #authScreen h2 {
+    font-size: 1.15rem;
+  }
+  #authScreen form label {
+    margin-bottom: 6px;
+  }
+  #authScreen input, #authScreen select, #authScreen button {
+    padding: 10px 12px;
+  }
+  #authScreen button.primary-btn,
+  #authScreen button.accent-btn {
+    margin-top: 10px;
+  }
+  #authScreen .card:last-child {
+    display: block;
   }
 }
