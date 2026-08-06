@@ -95,7 +95,7 @@ function renderLeaveDetail() {
   detailTitle.textContent = '방공대 출타신청 종합';
   detailContent.innerHTML = '';
 
-  if (state.user.role === 'user' || state.user.role === 'officer') {
+  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
     const forms = createElement('div');
     forms.innerHTML = `
       <div class="inline-row">
