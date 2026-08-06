@@ -750,103 +750,108 @@ document.getElementById('backToHomeBtn').addEventListener('click', () => {
 
 document.getElementById('registerForm').addEventListener('submit', (event) => {
   event.preventDefault();
-  const milNumber = document.getElementById('milNumber').value.trim();
-  const birthDate = document.getElementById('birthDate').value;
-  const unitCode = document.getElementById('unitCode').value.trim();
-  const password = document.getElementById('registerPassword').value;
-  const role = document.getElementById('roleSelect').value;
-  const enlistDate = document.getElementById('enlistDate').value;
-  const dischargeDate = document.getElementById('dischargeDate').value;
+  try {
+    const milNumber = document.getElementById('milNumber').value.trim();
+    const birthDate = document.getElementById('birthDate').value;
+    const unitCode = document.getElementById('unitCode').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    const role = document.getElementById('roleSelect').value;
+    const enlistDate = document.getElementById('enlistDate').value;
+    const dischargeDate = document.getElementById('dischargeDate').value;
 
-  const registerName = document.getElementById('registerName').value.trim();
+    const registerName = document.getElementById('registerName').value.trim();
 
-  if (!milNumber || !registerName || !birthDate || !unitCode || !password) {
-    alert('군번, 이름, 생년월일, 부대 코드, 패스워드는 필수입니다.');
-    return;
-  }
-  if (password.length < 4) {
-    alert('패스워드는 최소 4자리 이상이어야 합니다.');
-    return;
-  }
-
-  if (role === 'user' && (!enlistDate || !dischargeDate)) {
-    alert('용사는 입대일과 전역예정일을 반드시 입력해야 합니다.');
-    return;
-  }
-
-  const matchingDb = state.users.find((user) =>
-    user.milNumber === milNumber &&
-    user.name === registerName &&
-    user.birthDate === birthDate &&
-    !user.password
-  );
-
-  const existingCommander = state.users.find((user) => normalizeRole(user.role) === 'commander' && user.password);
-  if (role === 'commander' && existingCommander) {
-    if (!matchingDb) {
-      alert('지휘자 교체 요청은 관리자 DB에 등록된 정보가 있어야 합니다.');
+    if (!milNumber || !registerName || !birthDate || !unitCode || !password) {
+      alert('군번, 이름, 생년월일, 부대 코드, 패스워드는 필수입니다. 모든 항목을 확인해 주세요.');
+      return;
+    }
+    if (password.length < 4) {
+      alert('패스워드는 최소 4자리 이상이어야 합니다.');
       return;
     }
 
-    const duplicateRequest = state.commanderRequests.find((request) => request.milNumber === milNumber && request.status === '승인대기');
-    if (duplicateRequest) {
-      alert('이미 지휘자 교체 요청이 접수되어 있습니다.');
+    if (role === 'user' && (!enlistDate || !dischargeDate)) {
+      alert('용사는 입대일과 전역예정일을 반드시 입력해야 합니다.');
       return;
     }
 
-    state.commanderRequests.push({
-      milNumber,
-      name: registerName,
-      birthDate,
-      unitCode,
-      role,
-      enlistDate: enlistDate || '',
-      dischargeDate: dischargeDate || '',
-      password,
-      status: '승인대기'
-    });
+    const matchingDb = state.users.find((user) =>
+      user.milNumber === milNumber &&
+      user.name === registerName &&
+      user.birthDate === birthDate &&
+      !user.password
+    );
+
+    const existingCommander = state.users.find((user) => normalizeRole(user.role) === 'commander' && user.password);
+    if (role === 'commander' && existingCommander) {
+      if (!matchingDb) {
+        alert('지휘자 교체 요청은 관리자 DB에 등록된 정보가 있어야 합니다.');
+        return;
+      }
+
+      const duplicateRequest = state.commanderRequests.find((request) => request.milNumber === milNumber && request.status === '승인대기');
+      if (duplicateRequest) {
+        alert('이미 지휘자 교체 요청이 접수되어 있습니다.');
+        return;
+      }
+
+      state.commanderRequests.push({
+        milNumber,
+        name: registerName,
+        birthDate,
+        unitCode,
+        role,
+        enlistDate: enlistDate || '',
+        dischargeDate: dischargeDate || '',
+        password,
+        status: '승인대기'
+      });
+
+      saveState();
+      event.target.reset();
+      updateMilitaryDateFields();
+      alert('지휘자 교체 요청이 접수되었습니다. 이전 지휘자의 승인을 기다려 주세요.');
+      showScreen(authScreen);
+      document.getElementById('loginMilNumber').focus();
+      return;
+    }
+
+    const isFirstAdminSignup = role === 'admin' && !state.users.some((user) => user.role === 'admin' && user.password);
+
+    if (!matchingDb && !isFirstAdminSignup) {
+      alert('관리자가 미리 등록한 DB와 일치하는 정보가 필요합니다.');
+      return;
+    }
+
+    if (matchingDb) {
+      matchingDb.unitCode = unitCode;
+      matchingDb.password = password;
+      matchingDb.role = role;
+      matchingDb.enlistDate = enlistDate;
+      matchingDb.dischargeDate = dischargeDate;
+    } else {
+      state.users.push({
+        milNumber,
+        name: registerName,
+        birthDate,
+        unitCode,
+        role,
+        enlistDate: enlistDate || '',
+        dischargeDate: dischargeDate || '',
+        password
+      });
+    }
 
     saveState();
     event.target.reset();
     updateMilitaryDateFields();
-    alert('지휘자 교체 요청이 접수되었습니다. 이전 지휘자의 승인을 기다려 주세요.');
+    alert('가입이 완료되었습니다. 로그인 창에서 로그인해 주세요.');
     showScreen(authScreen);
     document.getElementById('loginMilNumber').focus();
-    return;
+  } catch (error) {
+    console.error('Registration error:', error);
+    alert('가입 처리 중 오류가 발생했습니다. 입력값을 확인하거나 콘솔을 확인해 주세요.');
   }
-
-  const isFirstAdminSignup = role === 'admin' && !state.users.some((user) => user.role === 'admin' && user.password);
-
-  if (!matchingDb && !isFirstAdminSignup) {
-    alert('관리자가 미리 등록한 DB와 일치하는 정보가 필요합니다.');
-    return;
-  }
-
-  if (matchingDb) {
-    matchingDb.unitCode = unitCode;
-    matchingDb.password = password;
-    matchingDb.role = role;
-    matchingDb.enlistDate = enlistDate;
-    matchingDb.dischargeDate = dischargeDate;
-  } else {
-    state.users.push({
-      milNumber,
-      name: registerName,
-      birthDate,
-      unitCode,
-      role,
-      enlistDate: enlistDate || '',
-      dischargeDate: dischargeDate || '',
-      password
-    });
-  }
-
-  saveState();
-  event.target.reset();
-  updateMilitaryDateFields();
-  alert('가입이 완료되었습니다. 로그인 창에서 로그인해 주세요.');
-  showScreen(authScreen);
-  document.getElementById('loginMilNumber').focus();
 });
 
 document.getElementById('loginForm').addEventListener('submit', (event) => {
