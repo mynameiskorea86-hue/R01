@@ -453,10 +453,11 @@ button { cursor: pointer; font-weight: 700; }
     flex-direction: column;
     justify-content: flex-start;
     gap: 6px;
-    overflow: hidden;
+    overflow-y: auto;
+    min-height: 0;
   }
   #authScreen .card {
-    flex: none;
+    flex: 0 0 auto;
     min-height: auto;
   }
   #authScreen .card:first-child {
