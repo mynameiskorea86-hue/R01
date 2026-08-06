@@ -808,13 +808,26 @@ if (!registerForm) {
       user.milNumber === milNumber &&
       user.name === registerName &&
       user.birthDate === birthDate &&
+      normalizeRole(user.role) === normalizeRole(role) &&
       !user.password
     );
+
+    const existingDbEntry = state.users.find((user) =>
+      user.milNumber === milNumber &&
+      user.name === registerName &&
+      user.birthDate === birthDate &&
+      !user.password
+    );
+
+    if (existingDbEntry && !matchingDb) {
+      alert(`관리자 DB에 등록된 직책은 '${existingDbEntry.role}'입니다. 신청 화면의 직책과 일치시켜 주세요.`);
+      return;
+    }
 
     const existingCommander = state.users.find((user) => normalizeRole(user.role) === 'commander' && user.password);
     if (role === 'commander' && existingCommander) {
       if (!matchingDb) {
-        alert('지휘자 교체 요청은 관리자 DB에 등록된 군번, 이름, 생년월일 정보와 일치해야 합니다. 관리자에게 확인해 주세요.');
+        alert('지휘자 교체 요청은 관리자 DB에 등록된 군번, 이름, 생년월일, 직책 정보가 모두 일치해야 합니다. 관리자에게 확인해 주세요.');
         return;
       }
 
