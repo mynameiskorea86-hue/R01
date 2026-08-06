@@ -107,7 +107,7 @@ body {
 .hidden { display: none !important; }
 #homeScreen {
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
   border-radius: 28px;
   padding: 14px;
 }
