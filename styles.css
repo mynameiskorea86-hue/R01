@@ -22,8 +22,11 @@ body {
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
   color: var(--text);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 .page-background {
   min-height: 100vh;
@@ -35,7 +38,7 @@ body {
 }
 .phone-frame {
   width: min(420px, 100%);
-  height: calc(100vh - 28px);
+  height: min(100dvh - 28px, 840px);
   max-height: 840px;
   border-radius: 48px;
   background: #ffffff;
@@ -55,6 +58,8 @@ body {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  transform: translateZ(0);
+  will-change: transform;
 }
 .screen {
   display: none;
@@ -141,8 +146,9 @@ input, select, textarea, button {
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  font-size: 1rem;
+  font-size: 16px;
   margin-top: 8px;
+  min-height: 44px;
 }
 input[type="date"] {
   touch-action: manipulation;
