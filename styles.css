@@ -214,6 +214,14 @@ button { cursor: pointer; font-weight: 700; }
   background: rgba(15, 23, 42, 0.06);
   color: #0f172a;
 }
+.status-pending {
+  background: rgba(254, 202, 202, 0.2);
+  color: #dc2626;
+}
+.status-complete {
+  background: rgba(167, 243, 208, 0.2);
+  color: #16a34a;
+}
 .notice-card {
   grid-column: span 2;
 }
@@ -345,7 +353,9 @@ button { cursor: pointer; font-weight: 700; }
   margin-top: 10px;
   background: #fbfdff;
 }
-.status { color: var(--accent); font-weight: 700; }
+.status {
+  font-weight: 700;
+}
 @media (max-width: 700px) {
   html, body {
     min-height: 100%;

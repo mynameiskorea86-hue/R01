@@ -126,7 +126,8 @@ function setAuthState() {
     showScreen(homeScreen);
     logoutBtn.classList.remove('hidden');
     if (userGreeting) {
-      userGreeting.textContent = `${state.user.role === 'admin' ? '관리자' : state.user.role === 'commander' ? '지휘자' : state.user.role === 'officer' ? '간부' : '용사'}님`;
+      const roleLabel = state.user.role === 'admin' ? '관리자' : state.user.role === 'commander' ? '지휘자' : state.user.role === 'officer' ? '간부' : '용사';
+      userGreeting.textContent = `${state.user.name || ''} ${roleLabel}님`;
     }
     if (userInfoText) {
       userInfoText.textContent = `${state.user.milNumber} · ${state.user.unitCode}`;
@@ -162,6 +163,26 @@ function renderLeaveDetail() {
   detailContent.innerHTML = '';
 
   if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+    const leaveRegions = {
+      서울: ['강남', '강북', '서초', '송파', '강서', '동작', '관악', '광진', '마포', '용산', '중구', '종로'],
+      경기: ['수원', '고양', '용인', '화성', '안산', '부천', '시흥', '평택', '의정부', '남양주'],
+      양주: ['옥정', '회정', '광적', '은현', '장흥'],
+      인천: ['연수', '남동', '부평', '서구', '미추홀'],
+      대전: ['유성', '서구', '중구', '동구', '대덕구'],
+      대구: ['수성', '달서', '중구', '동구', '북구', '남구'],
+      부산: ['해운대', '수영', '동래', '부산진', '사상', '금정'],
+      광주: ['북구', '동구', '서구', '남구', '광산구'],
+      울산: ['남구', '동구', '중구', '북구', '울주'],
+      강원: ['춘천', '강릉', '원주', '속초', '동해'],
+      충남: ['천안', '아산', '홍성', '보령', '서산'],
+      충북: ['청주', '충주', '제천', '보은'],
+      전남: ['여수', '목포', '순천', '나주'],
+      전북: ['전주', '군산', '남원', '익산'],
+      경남: ['창원', '김해', '진주', '거제', '통영'],
+      경북: ['포항', '경주', '안동', '구미', '영천'],
+      제주: ['제주시', '서귀포']
+    };
+
     const forms = createElement('div');
     forms.innerHTML = `
       <div class="inline-row">
@@ -174,10 +195,13 @@ function renderLeaveDetail() {
         </label>
         <label>출타 지역
           <select id="leaveRegion">
-            <option value="본부">본부</option>
-            <option value="외곽">외곽</option>
-            <option value="군사시설 외">군사시설 외</option>
+            ${Object.keys(leaveRegions).map((region) => `<option value="${region}">${region}</option>`).join('')}
           </select>
+        </label>
+      </div>
+      <div class="inline-row">
+        <label>하위 지역
+          <select id="leaveSubregion"></select>
         </label>
       </div>
       <div class="inline-row">
@@ -194,6 +218,16 @@ function renderLeaveDetail() {
       <button id="requestLeaveBtn" class="primary-btn">신청하기</button>
     `;
     detailContent.appendChild(forms);
+
+    const leaveRegionSelect = document.getElementById('leaveRegion');
+    const leaveSubregionSelect = document.getElementById('leaveSubregion');
+    const updateSubregionOptions = () => {
+      const selectedRegion = leaveRegionSelect.value;
+      const subregions = leaveRegions[selectedRegion] || [];
+      leaveSubregionSelect.innerHTML = subregions.map((subregion) => `<option value="${subregion}">${subregion}</option>`).join('');
+    };
+    leaveRegionSelect.addEventListener('change', updateSubregionOptions);
+    updateSubregionOptions();
   }
 
   const approvalList = createElement('div', 'card');
@@ -208,9 +242,21 @@ function renderLeaveDetail() {
   } else {
     visibleRequests.forEach((item, index) => {
       const row = createElement('div', 'list-box');
-      row.innerHTML = `<strong>${item.type}</strong> · ${item.startDate} ~ ${item.endDate}<br/>${item.region} · ${item.reason}<br/>작성자: ${item.author}<br/><span class="status">${item.status}</span>`;
+      const subregionText = item.subregion ? ` / ${item.subregion}` : '';
+      const statusClass = item.status === '승인'
+        ? 'status status-complete'
+        : item.status === '반려'
+          ? 'status status-pending'
+          : 'status';
+      const commentText = item.comment ? `<br/><strong>댓글:</strong> ${item.comment}` : '';
+      row.innerHTML = `<strong>${item.type}</strong> · ${item.startDate} ~ ${item.endDate}<br/>${item.region}${subregionText} · ${item.reason}<br/>작성자: ${item.author}${commentText}<br/><span class="${statusClass}">${item.status}</span>`;
       if ((state.user.role === 'commander' || state.user.role === 'admin') && item.status === '승인대기') {
-        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-leave" data-index="${index}">승인</button><button class="ghost-btn danger-btn reject-leave" data-index="${index}">거절</button></div>`;
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-leave" data-index="${index}">승인</button><button class="ghost-btn danger-btn reject-leave" data-index="${index}">반려</button></div>`;
+      }
+      if (state.user.role === 'commander' || state.user.role === 'admin') {
+        if (!item.comment) {
+          row.innerHTML += `<label>관리자 댓글<br/><textarea id="leaveComment-${index}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-leave-comment" data-index="${index}">댓글 저장</button>`;
+        }
       }
       list.appendChild(row);
     });
@@ -222,6 +268,7 @@ function renderLeaveDetail() {
     document.getElementById('requestLeaveBtn').addEventListener('click', () => {
       const type = document.getElementById('leaveType').value;
       const region = document.getElementById('leaveRegion').value;
+      const subregion = document.getElementById('leaveSubregion')?.value || '';
       const startDate = document.getElementById('startDate').value;
       const endDate = document.getElementById('endDate').value;
       const reason = document.getElementById('leaveReason').value;
@@ -230,7 +277,7 @@ function renderLeaveDetail() {
         return;
       }
 
-      state.requests.push({ type, region, startDate, endDate, reason, status: '승인대기', author: state.user.milNumber });
+      state.requests.push({ type, region, subregion, startDate, endDate, reason, status: '승인대기', author: state.user.milNumber });
       saveState();
       renderLeaveDetail();
       alert('신청이 접수되었습니다. 승인 대기 중입니다.');
@@ -249,9 +296,21 @@ function renderLeaveDetail() {
   document.querySelectorAll('.reject-leave').forEach((button) => {
     button.addEventListener('click', () => {
       const index = Number(button.dataset.index);
-      state.requests[index].status = '거절';
+      state.requests[index].status = '반려';
       saveState();
       renderLeaveDetail();
+    });
+  });
+
+  document.querySelectorAll('.save-leave-comment').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      const commentTextarea = document.getElementById(`leaveComment-${index}`);
+      if (!commentTextarea) return;
+      state.requests[index].comment = commentTextarea.value.trim();
+      saveState();
+      renderLeaveDetail();
+      alert('댓글이 저장되었습니다.');
     });
   });
 }
@@ -259,6 +318,7 @@ function renderLeaveDetail() {
 function renderLetterDetail() {
   detailTitle.textContent = '대장과의 대화';
   detailContent.innerHTML = '';
+  const currentRole = normalizeRole(state.user?.role);
   detailContent.innerHTML = `
     <label>비밀글 작성
       <textarea id="letterText" placeholder="대장에게 남길 내용을 입력해 주세요."></textarea>
@@ -269,16 +329,22 @@ function renderLetterDetail() {
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>대장과의 대화 목록</h3>';
   const visibleLetters = state.letters.filter((item) => {
-    if (['commander', 'admin'].includes(state.user.role)) return true;
+    if (['commander', 'admin'].includes(currentRole)) return true;
     return item.author === state.user.milNumber;
   });
 
   if (!visibleLetters.length) {
     list.innerHTML += '<div>확인 가능한 대화가 없습니다.</div>';
   } else {
-    visibleLetters.forEach((item) => {
+    visibleLetters.forEach((item, index) => {
       const row = createElement('div', 'list-box');
-      row.innerHTML = `<strong>${item.author}</strong><br/>${item.text}<br/><span class="badge">작성자${item.author === state.user.milNumber ? ' 본인' : ''}${state.user.role === 'commander' ? ' · 지휘관 확인 가능' : ''}</span>`;
+      const statusText = item.status || '검토중';
+      const statusClass = statusText === '검토중' ? 'status status-pending' : statusText === '처리완료' ? 'status status-complete' : 'status';
+      const badgeText = `작성자${item.author === state.user.milNumber ? ' 본인' : ''}${['commander', 'admin'].includes(currentRole) ? ' · 지휘관 확인 가능' : ''}`;
+      row.innerHTML = `<strong>${item.author}</strong><br/>${item.text}<br/><span class="${statusClass}">${statusText}</span><br/><span class="badge">${badgeText}</span>`;
+      if (['commander', 'admin'].includes(currentRole)) {
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn review-letter" data-index="${index}">검토중</button><button class="ghost-btn primary-btn complete-letter" data-index="${index}">처리완료</button></div>`;
+      }
       list.appendChild(row);
     });
   }
@@ -290,17 +356,37 @@ function renderLetterDetail() {
       alert('내용을 입력해 주세요.');
       return;
     }
-    state.letters.push({ author: state.user.milNumber, text });
+    state.letters.push({ author: state.user.milNumber, text, status: '검토중' });
     saveState();
     renderLetterDetail();
     alert('비밀글이 전송되었습니다.');
+  });
+
+  document.querySelectorAll('.review-letter').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      state.letters[index].status = '검토중';
+      saveState();
+      renderLetterDetail();
+    });
+  });
+
+  document.querySelectorAll('.complete-letter').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      state.letters[index].status = '처리완료';
+      saveState();
+      renderLetterDetail();
+    });
   });
 }
 
 function renderBarberDetail() {
   detailTitle.textContent = '이발소 신청';
   detailContent.innerHTML = '';
-  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+  const currentRole = normalizeRole(state.user?.role);
+  const canSubmitBarber = ['user', 'officer', 'commander', 'admin'].includes(currentRole);
+  if (canSubmitBarber) {
     detailContent.innerHTML = `
       <label>예약일
         <input type="date" id="barberDate" />
@@ -314,7 +400,7 @@ function renderBarberDetail() {
 
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>예약 내역</h3>';
-  const visibleBookings = state.user.role === 'commander' || state.user.role === 'admin'
+  const visibleBookings = ['commander', 'admin'].includes(currentRole)
     ? state.barberBookings
     : state.barberBookings.filter((item) => item.author === state.user.milNumber);
 
@@ -323,17 +409,27 @@ function renderBarberDetail() {
   } else {
     visibleBookings.forEach((item, index) => {
       const row = createElement('div', 'list-box');
-      row.innerHTML = `<strong>${item.date}</strong><br/>${item.note}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="status">${item.status || '승인대기'}</span>`;
-      if ((state.user.role === 'commander' || state.user.role === 'admin') && (item.status === '승인대기' || !item.status)) {
-        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-barber" data-index="${index}">승인</button><button class="ghost-btn danger-btn reject-barber" data-index="${index}">거절</button></div>`;
+      const bookingStatus = item.status === '승인' ? '신청완료' : item.status === '거절' ? '재신청요망' : item.status || '신청대기';
+      const statusClass = item.status === '승인'
+        ? 'status status-complete'
+        : item.status === '거절'
+          ? 'status status-pending'
+          : 'status';
+      const commentText = item.comment ? `<br/><strong>댓글:</strong> ${item.comment}` : '';
+      row.innerHTML = `<strong>${item.date}</strong><br/>${item.note}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}${commentText}<br/><span class="${statusClass}">${bookingStatus}</span>`;
+      if ((state.user.role === 'commander' || state.user.role === 'admin') && (item.status === '승인대기' || !item.status || item.status)) {
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-barber" data-index="${index}">신청완료</button><button class="ghost-btn danger-btn reject-barber" data-index="${index}">재신청요망</button></div>`;
+        if (!item.comment) {
+          row.innerHTML += `<label>관리자 댓글<br/><textarea id="barberComment-${index}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-barber-comment" data-index="${index}">댓글 저장</button>`;
+        }
       }
       list.appendChild(row);
     });
   }
   detailContent.appendChild(list);
 
-  if (state.user.role === 'user' || state.user.role === 'officer') {
-    document.getElementById('barberBookBtn').addEventListener('click', () => {
+  if (canSubmitBarber) {
+    document.getElementById('barberBookBtn')?.addEventListener('click', () => {
       const date = document.getElementById('barberDate').value;
       const note = document.getElementById('barberNote').value;
       if (!date || !note) {
@@ -363,12 +459,25 @@ function renderBarberDetail() {
       renderBarberDetail();
     });
   });
+  document.querySelectorAll('.save-barber-comment').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      const commentTextarea = document.getElementById(`barberComment-${index}`);
+      if (!commentTextarea) return;
+      state.barberBookings[index].comment = commentTextarea.value.trim();
+      saveState();
+      renderBarberDetail();
+      alert('댓글이 저장되었습니다.');
+    });
+  });
 }
 
 function renderSuggestionDetail() {
   detailTitle.textContent = '건의사항';
   detailContent.innerHTML = '';
-  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+  const currentRole = normalizeRole(state.user?.role);
+  const canSubmitSuggestion = ['user', 'officer', 'commander', 'admin'].includes(currentRole);
+  if (canSubmitSuggestion) {
     detailContent.innerHTML = `
       <label>제목
         <input type="text" id="suggestionTitle" placeholder="예: 식당 개선 요청" />
@@ -382,7 +491,7 @@ function renderSuggestionDetail() {
 
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>건의사항 현황</h3>';
-  const visibleSuggestions = state.user.role === 'commander' || state.user.role === 'admin'
+  const visibleSuggestions = ['commander', 'admin'].includes(currentRole)
     ? state.suggestions
     : state.suggestions.filter((item) => item.author === state.user.milNumber);
 
@@ -393,15 +502,15 @@ function renderSuggestionDetail() {
       const row = createElement('div', 'list-box');
       row.innerHTML = `<strong>${item.title}</strong><br/>${item.text}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="status">${item.status || '검토중'}</span>`;
       if ((state.user.role === 'commander' || state.user.role === 'admin') && (item.status === '검토중' || !item.status)) {
-        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-suggestion" data-index="${index}">승인</button><button class="ghost-btn danger-btn reject-suggestion" data-index="${index}">거절</button></div>`;
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-suggestion" data-index="${index}">조치완료</button><button class="ghost-btn danger-btn reject-suggestion" data-index="${index}">미승인</button></div>`;
       }
       list.appendChild(row);
     });
   }
   detailContent.appendChild(list);
 
-  if (state.user.role === 'user' || state.user.role === 'officer') {
-    document.getElementById('submitSuggestionBtn').addEventListener('click', () => {
+  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+    document.getElementById('submitSuggestionBtn')?.addEventListener('click', () => {
       const title = document.getElementById('suggestionTitle').value;
       const text = document.getElementById('suggestionText').value;
       if (!title || !text) {
@@ -418,7 +527,7 @@ function renderSuggestionDetail() {
   document.querySelectorAll('.approve-suggestion').forEach((button) => {
     button.addEventListener('click', () => {
       const index = Number(button.dataset.index);
-      state.suggestions[index].status = '승인';
+      state.suggestions[index].status = '조치완료';
       saveState();
       renderSuggestionDetail();
     });
@@ -426,7 +535,7 @@ function renderSuggestionDetail() {
   document.querySelectorAll('.reject-suggestion').forEach((button) => {
     button.addEventListener('click', () => {
       const index = Number(button.dataset.index);
-      state.suggestions[index].status = '거절';
+      state.suggestions[index].status = '미승인';
       saveState();
       renderSuggestionDetail();
     });
