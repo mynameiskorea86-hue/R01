@@ -18,6 +18,8 @@ const detailTitle = document.getElementById('detailTitle');
 const detailContent = document.getElementById('detailContent');
 const userGreeting = document.getElementById('userGreeting');
 const userInfoText = document.getElementById('userInfoText');
+const registerCard = document.getElementById('registerCard');
+const showRegisterBtn = document.getElementById('showRegisterBtn');
 
 function showScreen(screen) {
   authScreen.classList.remove('active');
@@ -33,6 +35,18 @@ function saveState() {
   localStorage.setItem('suggestions', JSON.stringify(state.suggestions));
   localStorage.setItem('notices', JSON.stringify(state.notices));
   localStorage.setItem('barberBookings', JSON.stringify(state.barberBookings));
+}
+
+function hideRegisterCard() {
+  if (registerCard) {
+    registerCard.classList.add('hidden');
+  }
+}
+
+function showRegisterCard() {
+  if (registerCard) {
+    registerCard.classList.remove('hidden');
+  }
 }
 
 function setAuthState() {
@@ -52,6 +66,7 @@ function setAuthState() {
   } else {
     showScreen(authScreen);
     logoutBtn.classList.add('hidden');
+    hideRegisterCard();
     if (userGreeting) {
       userGreeting.textContent = '';
     }
@@ -602,6 +617,11 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   state.user = found;
   setAuthState();
   alert('로그인 되었습니다.');
+});
+
+document.getElementById('showRegisterBtn').addEventListener('click', () => {
+  showRegisterCard();
+  document.getElementById('milNumber').focus();
 });
 
 const roleSelect = document.getElementById('roleSelect');

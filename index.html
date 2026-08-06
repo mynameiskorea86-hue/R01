@@ -23,6 +23,19 @@
 
       <section id="authScreen" class="screen active">
         <div class="card">
+          <h2>로그인</h2>
+          <form id="loginForm">
+            <label>군번
+              <input type="text" id="loginMilNumber" placeholder="군번 입력" required />
+            </label>
+            <div class="action-row">
+              <button type="submit" class="primary-btn">로그인</button>
+              <button type="button" id="showRegisterBtn" class="ghost-btn">가입하기</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="registerCard" class="card hidden">
           <h2>회원가입</h2>
           <form id="registerForm">
             <label>군번
@@ -49,16 +62,6 @@
               <input type="date" id="dischargeDate" disabled />
             </label>
             <button type="submit" class="primary-btn">가입하기</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <h2>로그인</h2>
-          <form id="loginForm">
-            <label>군번
-              <input type="text" id="loginMilNumber" placeholder="군번 입력" required />
-            </label>
-            <button type="submit" class="primary-btn">로그인</button>
           </form>
         </div>
       </section>
