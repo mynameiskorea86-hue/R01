@@ -107,7 +107,6 @@ body {
 .hidden { display: none !important; }
 #homeScreen {
   position: relative;
-  display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
@@ -201,6 +200,10 @@ button { cursor: pointer; font-weight: 700; }
   display: flex;
   gap: 10px;
   margin-top: 12px;
+}
+.action-row button {
+  flex: 1;
+  min-width: 0;
 }
 .status {
   display: inline-block;
@@ -451,9 +454,6 @@ button { cursor: pointer; font-weight: 700; }
     justify-content: flex-start;
     gap: 6px;
     overflow: hidden;
-  }
-  #authScreen .card:last-child {
-    display: none;
   }
   #authScreen .card {
     flex: none;
