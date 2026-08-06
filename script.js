@@ -161,26 +161,27 @@ function createElement(tag, className, innerHTML) {
 function renderLeaveDetail() {
   detailTitle.textContent = '방공대 출타신청 종합';
   detailContent.innerHTML = '';
+  const currentRole = normalizeRole(state.user?.role);
 
-  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+  if (['user', 'officer', 'commander', 'admin'].includes(currentRole)) {
     const leaveRegions = {
-      서울: ['강남', '강북', '서초', '송파', '강서', '동작', '관악', '광진', '마포', '용산', '중구', '종로'],
-      경기: ['수원', '고양', '용인', '화성', '안산', '부천', '시흥', '평택', '의정부', '남양주'],
-      양주: ['옥정', '회정', '광적', '은현', '장흥'],
-      인천: ['연수', '남동', '부평', '서구', '미추홀'],
-      대전: ['유성', '서구', '중구', '동구', '대덕구'],
-      대구: ['수성', '달서', '중구', '동구', '북구', '남구'],
-      부산: ['해운대', '수영', '동래', '부산진', '사상', '금정'],
+      서울: ['강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'],
+      경기: ['수원시', '성남시', '고양시', '용인시', '화성시', '안산시', '안양시', '부천시', '광명시', '평택시', '의정부시', '남양주시', '군포시', '시흥시', '김포시', '파주시', '이천시', '오산시', '하남시', '구리시', '양평군', '양주시', '포천시', '동두천시', '가평군', '연천군', '과천시', '의왕시'],
+      인천: ['연수구', '남동구', '부평구', '계양구', '서구', '중구', '동구', '미추홀구', '강화군', '옹진군'],
+      세종: ['조치원읍', '연기면', '연동면', '부강면', '금남면', '장군면', '전의면', '전동면', '소정면', '한솔동', '도담동', '해밀동', '새롬동', '아름동', '종촌동', '고운동', '보람동', '대평동', '다정동'],
+      대전: ['유성구', '서구', '중구', '동구', '대덕구'],
+      대구: ['수성구', '달서구', '중구', '동구', '북구', '남구'],
+      부산: ['해운대구', '수영구', '동래구', '부산진구', '사상구', '금정구', '남구', '북구', '강서구', '연제구', '사하구', '기장군'],
       광주: ['북구', '동구', '서구', '남구', '광산구'],
-      울산: ['남구', '동구', '중구', '북구', '울주'],
-      강원: ['춘천', '강릉', '원주', '속초', '동해'],
-      충남: ['천안', '아산', '홍성', '보령', '서산'],
-      충북: ['청주', '충주', '제천', '보은'],
-      전남: ['여수', '목포', '순천', '나주'],
-      전북: ['전주', '군산', '남원', '익산'],
-      경남: ['창원', '김해', '진주', '거제', '통영'],
-      경북: ['포항', '경주', '안동', '구미', '영천'],
-      제주: ['제주시', '서귀포']
+      울산: ['남구', '동구', '중구', '북구', '울주군'],
+      강원: ['춘천시', '강릉시', '원주시', '속초시', '동해시', '태백시', '삼척시', '홍천군', '횡성군', '영월군', '평창군', '정선군', '철원군', '화천군', '양구군', '인제군', '고성군', '양양군'],
+      충남: ['천안시', '아산시', '공주시', '보령시', '서산시', '논산시', '계룡시', '당진시', '홍성군', '예산군', '태안군', '청양군', '부여군'],
+      충북: ['청주시', '충주시', '제천시', '음성군', '진천군', '괴산군', '단양군', '보은군', '옥천군', '영동군', '증평군'],
+      전남: ['여수시', '목포시', '순천시', '나주시', '광양시', '담양군', '곡성군', '구례군', '고흥군', '보성군', '화순군', '장흥군', '강진군', '해남군', '영암군', '무안군', '함평군', '영광군', '장성군', '완도군', '진도군', '신안군'],
+      전북: ['전주시', '군산시', '익산시', '정읍시', '김제시', '남원시', '완주군', '진안군', '무주군', '장수군', '임실군', '순창군', '고창군', '부안군'],
+      경남: ['창원시', '진주시', '김해시', '양산시', '거제시', '통영시', '사천시', '밀양시', '거창군', '합천군', '창녕군', '고성군', '남해군', '하동군', '함안군', '함양군', '산청군'],
+      경북: ['포항시', '구미시', '경주시', '김천시', '안동시', '영주시', '상주시', '문경시', '예천군', '봉화군', '울진군', '울릉군', '청송군', '영양군', '영덕군', '청도군', '고령군', '성주군', '칠곡군', '군위군'],
+      제주: ['제주시', '서귀포시']
     };
 
     const forms = createElement('div');
@@ -233,29 +234,36 @@ function renderLeaveDetail() {
   const approvalList = createElement('div', 'card');
   approvalList.innerHTML = '<h3>출타 신청 현황</h3>';
   const list = createElement('div');
-  const visibleRequests = state.user.role === 'commander' || state.user.role === 'admin'
+  const visibleRequests = currentRole === 'commander' || currentRole === 'admin'
     ? state.requests
     : state.requests.filter((item) => item.author === state.user.milNumber);
 
   if (!visibleRequests.length) {
     list.innerHTML = '<div>확인 가능한 신청 내역이 없습니다.</div>';
   } else {
-    visibleRequests.forEach((item, index) => {
+    visibleRequests.forEach((item) => {
       const row = createElement('div', 'list-box');
+      const requestIndex = state.requests.findIndex((request) => request === item);
       const subregionText = item.subregion ? ` / ${item.subregion}` : '';
       const statusClass = item.status === '승인'
         ? 'status status-complete'
-        : item.status === '반려'
+        : item.status === '반려' || item.status === '취소'
           ? 'status status-pending'
           : 'status';
       const commentText = item.comment ? `<br/><strong>댓글:</strong> ${item.comment}` : '';
-      row.innerHTML = `<strong>${item.type}</strong> · ${item.startDate} ~ ${item.endDate}<br/>${item.region}${subregionText} · ${item.reason}<br/>작성자: ${item.author}${commentText}<br/><span class="${statusClass}">${item.status}</span>`;
-      if ((state.user.role === 'commander' || state.user.role === 'admin') && item.status === '승인대기') {
-        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-leave" data-index="${index}">승인</button><button class="ghost-btn danger-btn reject-leave" data-index="${index}">반려</button></div>`;
+      const canCancel = item.status === '승인대기' && (currentRole === 'commander' || currentRole === 'admin' || item.author === state.user.milNumber);
+      const isCancelled = item.status === '취소';
+      const rowClass = isCancelled ? 'leave-cancelled' : '';
+      row.innerHTML = `<div class="${rowClass}"><strong>${item.type}</strong> · ${item.startDate} ~ ${item.endDate}<br/>${item.region}${subregionText} · ${item.reason}<br/>작성자: ${item.author}${commentText}<br/><span class="${statusClass}">${item.status}</span></div>`;
+      if (!isCancelled && (currentRole === 'commander' || currentRole === 'admin') && item.status === '승인대기') {
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-leave" data-index="${requestIndex}">승인</button><button class="ghost-btn danger-btn reject-leave" data-index="${requestIndex}">반려</button></div>`;
       }
-      if (state.user.role === 'commander' || state.user.role === 'admin') {
+      if (!isCancelled && canCancel) {
+        row.innerHTML += `<div class="action-row"><button class="ghost-btn danger-btn cancel-leave" data-index="${requestIndex}">취소</button></div>`;
+      }
+      if (currentRole === 'commander' || currentRole === 'admin') {
         if (!item.comment) {
-          row.innerHTML += `<label>관리자 댓글<br/><textarea id="leaveComment-${index}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-leave-comment" data-index="${index}">댓글 저장</button>`;
+          row.innerHTML += `<label>관리자 댓글<br/><textarea id="leaveComment-${requestIndex}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-leave-comment" data-index="${requestIndex}">댓글 저장</button>`;
         }
       }
       list.appendChild(row);
@@ -264,7 +272,7 @@ function renderLeaveDetail() {
   approvalList.appendChild(list);
   detailContent.appendChild(approvalList);
 
-  if (['user', 'officer', 'commander', 'admin'].includes(state.user.role)) {
+  if (['user', 'officer', 'commander', 'admin'].includes(currentRole)) {
     document.getElementById('requestLeaveBtn').addEventListener('click', () => {
       const type = document.getElementById('leaveType').value;
       const region = document.getElementById('leaveRegion').value;
@@ -297,6 +305,15 @@ function renderLeaveDetail() {
     button.addEventListener('click', () => {
       const index = Number(button.dataset.index);
       state.requests[index].status = '반려';
+      saveState();
+      renderLeaveDetail();
+    });
+  });
+
+  document.querySelectorAll('.cancel-leave').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      state.requests[index].status = '취소';
       saveState();
       renderLeaveDetail();
     });
@@ -500,7 +517,12 @@ function renderSuggestionDetail() {
   } else {
     visibleSuggestions.forEach((item, index) => {
       const row = createElement('div', 'list-box');
-      row.innerHTML = `<strong>${item.title}</strong><br/>${item.text}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="status">${item.status || '검토중'}</span>`;
+      const statusClass = item.status === '미승인'
+        ? 'status status-pending'
+        : item.status === '조치완료'
+          ? 'status status-complete'
+          : 'status';
+      row.innerHTML = `<strong>${item.title}</strong><br/>${item.text}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="${statusClass}">${item.status || '검토중'}</span>`;
       if ((state.user.role === 'commander' || state.user.role === 'admin') && (item.status === '검토중' || !item.status)) {
         row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-suggestion" data-index="${index}">조치완료</button><button class="ghost-btn danger-btn reject-suggestion" data-index="${index}">미승인</button></div>`;
       }

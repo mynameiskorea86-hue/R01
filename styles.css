@@ -222,6 +222,23 @@ button { cursor: pointer; font-weight: 700; }
   background: rgba(167, 243, 208, 0.2);
   color: #16a34a;
 }
+.leave-cancelled {
+  position: relative;
+  padding-left: 14px;
+  color: #6b7280;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.leave-cancelled::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: #9ca3af;
+}
 .notice-card {
   grid-column: span 2;
 }

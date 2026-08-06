@@ -36,18 +36,36 @@ class FakeElement {
       const child = new FakeElement(tagName);
       const idMatch = attributes.match(/\bid="([^"]+)"/i);
       const classMatch = attributes.match(/\bclass="([^"]+)"/i);
+      const dataIndexMatch = attributes.match(/\bdata-index="([^"]+)"/i);
       if (idMatch) child.id = idMatch[1];
       if (classMatch) child.className = classMatch[1];
+      if (dataIndexMatch) child.dataset.index = dataIndexMatch[1];
       this.appendChild(child);
     }
   }
 
-  querySelector() {
-    return null;
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] || null;
   }
 
-  querySelectorAll() {
-    return [];
+  querySelectorAll(selector) {
+    if (!selector) return [];
+    const results = [];
+    const matches = (node) => {
+      if (selector.startsWith('.')) {
+        const className = selector.slice(1);
+        return node.className && node.className.split(' ').includes(className);
+      }
+      return node.tagName.toLowerCase() === selector.toLowerCase();
+    };
+    const traverse = (node) => {
+      for (const child of node.children || []) {
+        if (matches(child)) results.push(child);
+        traverse(child);
+      }
+    };
+    traverse(this);
+    return results;
   }
 
   appendChild(child) {
@@ -117,17 +135,11 @@ function createDocument() {
     createElement(tagName) {
       return new FakeElement(tagName);
     },
-    querySelectorAll() {
-      return [];
+    querySelectorAll(selector) {
+      return Object.values(elements).flatMap((element) => element.querySelectorAll(selector));
     },
     body: new FakeElement('body')
   };
-
-  const baseElement = new FakeElement('div');
-  baseElement.querySelector = () => null;
-  baseElement.querySelectorAll = () => [];
-  elements.registerForm.querySelector = () => null;
-  elements.loginForm.querySelector = () => null;
 
   return { document, elements };
 }
@@ -139,18 +151,17 @@ const localStorage = {
   setItem(key, value) { this.store[key] = String(value); }
 };
 
-const alerts = [];
 const context = {
   console,
   document,
   localStorage,
   window: {},
-  alert: (msg) => alerts.push(msg),
+  alert: () => {},
   confirm: () => true,
   setTimeout,
   clearTimeout,
   URL: { createObjectURL: () => 'blob:test' },
-  Blob: class Blob {},
+  Blob: class Blob {}
 };
 context.global = context;
 context.globalThis = context;
@@ -163,14 +174,25 @@ vm.runInContext(script, context);
 const state = vm.runInContext('state', context);
 context.state = state;
 state.user = { milNumber: 'u1', role: '용사' };
-vm.runInContext('renderBarberDetail()', context);
+vm.runInContext('renderLeaveDetail()', context);
 
-const button = elements.barberBookBtn;
-const dateInput = elements.barberDate;
-const noteInput = elements.barberNote;
-dateInput.value = '2026-08-10';
-noteInput.value = '정리 부탁';
-button.dispatchEvent('click');
+const rendered = elements.detailContent.children[0].innerHTML;
+assert.ok(rendered.includes('value="세종"'), '세종 지역 옵션이 포함되어야 합니다.');
+const regionSelect = document.getElementById('leaveRegion');
+regionSelect.value = '세종';
+regionSelect.dispatchEvent('change');
+const subregionSelect = document.getElementById('leaveSubregion');
+assert.ok(subregionSelect.innerHTML.includes('조치원읍'), '세종 하위 지역이 생성되어야 합니다.');
 
-assert.ok(state.barberBookings.length === 1, '이발소 신청이 저장되어야 합니다.');
-console.log('barber booking test passed');
+state.requests = [
+  { type: '외박', region: '서울', subregion: '강남구', startDate: '2026-08-01', endDate: '2026-08-02', reason: '테스트1', status: '승인대기', author: 'u2' },
+  { type: '외박', region: '서울', subregion: '강남구', startDate: '2026-08-03', endDate: '2026-08-04', reason: '테스트2', status: '승인대기', author: 'u1' }
+];
+state.user = { milNumber: 'u1', role: '용사' };
+vm.runInContext('renderLeaveDetail()', context);
+const cancelButtons = document.querySelectorAll('.cancel-leave');
+assert.ok(cancelButtons.length > 0, '취소 버튼이 표시되어야 합니다.');
+cancelButtons[0].dispatchEvent('click');
+assert.strictEqual(state.requests[1].status, '취소', '내 신청은 취소 처리되어야 합니다.');
+assert.strictEqual(state.requests[0].status, '승인대기', '다른 사용자의 신청은 변경되면 안 됩니다.');
+console.log('leave region test passed');
