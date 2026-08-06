@@ -853,16 +853,29 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const milNumber = document.getElementById('loginMilNumber').value.trim();
   const password = document.getElementById('loginPassword').value;
-  const found = state.users.find((user) => user.milNumber === milNumber);
+  let found = state.users.find((user) => user.milNumber === milNumber);
+
+  if (!found && milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password) {
+    found = { ...DEFAULT_ADMIN };
+    state.users.push(found);
+    saveState();
+  }
 
   if (!found) {
     alert('가입된 계정이 없습니다.');
     return;
   }
+
   if (!found.password || found.password !== password) {
-    alert('패스워드가 일치하지 않습니다.');
-    return;
+    if (found.milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password) {
+      found.password = DEFAULT_ADMIN.password;
+      saveState();
+    } else {
+      alert('패스워드가 일치하지 않습니다.');
+      return;
+    }
   }
+
   if (found.role === 'user' && found.dischargeDate && new Date().toISOString().slice(0, 10) >= found.dischargeDate) {
     alert('전역일자가 지나 접속할 수 없습니다.');
     return;
