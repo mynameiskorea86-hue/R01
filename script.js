@@ -370,19 +370,61 @@ function renderSuggestionDetail() {
 function renderNoticeDetail() {
   detailTitle.textContent = '공지사항';
   detailContent.innerHTML = '';
+
+  if (['commander', 'admin'].includes(state.user.role)) {
+    detailContent.innerHTML += `
+      <label>공지 제목
+        <input type="text" id="noticeTitle" placeholder="공지 제목을 입력해 주세요." />
+      </label>
+      <label>공지 내용
+        <textarea id="noticeText" placeholder="공지 내용을 입력해 주세요."></textarea>
+      </label>
+      <button id="submitNoticeBtn" class="primary-btn">공지 등록</button>
+    `;
+  }
+
   const noticeList = createElement('div', 'card');
   noticeList.innerHTML = '<h3>부대 공지</h3>';
-  const items = [
-    '오늘 18:00까지 전투준비점검 실시',
-    '휴가 신청은 24시간 전까지 접수 가능',
-    '이발소 예약은 주말 운영 시간 외 신청 불가'
+  const noticeItems = state.notices.length ? state.notices : [
+    { title: '오늘 18:00까지 전투준비점검 실시', text: '', author: 'system' },
+    { title: '휴가 신청은 24시간 전까지 접수 가능', text: '', author: 'system' },
+    { title: '이발소 예약은 주말 운영 시간 외 신청 불가', text: '', author: 'system' }
   ];
-  items.forEach((text) => {
+
+  noticeItems.forEach((item, index) => {
     const row = createElement('div', 'list-box');
-    row.innerHTML = `<strong>${text}</strong>`;
+    row.innerHTML = `<strong>${item.title}</strong>${item.text ? '<br/>' + item.text : ''}${item.author ? '<br/><span class="badge">작성자: ' + item.author + '</span>' : ''}`;
+    if (['commander', 'admin'].includes(state.user.role) && item.author !== 'system') {
+      row.innerHTML += `<div class="action-row"><button class="ghost-btn danger-btn delete-notice" data-index="${index}">삭제</button></div>`;
+    }
     noticeList.appendChild(row);
   });
+
   detailContent.appendChild(noticeList);
+
+  if (['commander', 'admin'].includes(state.user.role)) {
+    document.getElementById('submitNoticeBtn').addEventListener('click', () => {
+      const title = document.getElementById('noticeTitle').value.trim();
+      const text = document.getElementById('noticeText').value.trim();
+      if (!title) {
+        alert('공지 제목을 입력해 주세요.');
+        return;
+      }
+      state.notices.push({ title, text, author: state.user.role });
+      saveState();
+      renderNoticeDetail();
+      alert('공지사항이 등록되었습니다.');
+    });
+  }
+
+  document.querySelectorAll('.delete-notice').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      state.notices.splice(index, 1);
+      saveState();
+      renderNoticeDetail();
+    });
+  });
 }
 
 function downloadUserDbTemplate() {
