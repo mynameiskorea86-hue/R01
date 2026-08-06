@@ -14,6 +14,19 @@ function normalizeUser(user) {
   };
 }
 
+function loadStateArray(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter((item) => item && typeof item === 'object');
+    return [];
+  } catch (error) {
+    console.warn(`Failed to parse localStorage[${key}]:`, error);
+    return [];
+  }
+}
+
 const DEFAULT_ADMIN = {
   milNumber: 'admin',
   name: '관리자',
@@ -33,13 +46,13 @@ const state = {
   user: null,
   selectedMenu: null,
   adminEditing: null,
-  users: JSON.parse(localStorage.getItem('users') || '[]').map(normalizeUser),
-  commanderRequests: JSON.parse(localStorage.getItem('commanderRequests') || '[]'),
-  requests: JSON.parse(localStorage.getItem('leaveRequests') || '[]'),
-  letters: JSON.parse(localStorage.getItem('letters') || '[]'),
-  suggestions: JSON.parse(localStorage.getItem('suggestions') || '[]'),
-  notices: JSON.parse(localStorage.getItem('notices') || '[]'),
-  barberBookings: JSON.parse(localStorage.getItem('barberBookings') || '[]')
+  users: loadStateArray('users').map(normalizeUser),
+  commanderRequests: loadStateArray('commanderRequests'),
+  requests: loadStateArray('leaveRequests'),
+  letters: loadStateArray('letters'),
+  suggestions: loadStateArray('suggestions'),
+  notices: loadStateArray('notices'),
+  barberBookings: loadStateArray('barberBookings')
 };
 
 function ensureDefaultAdmin() {
