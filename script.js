@@ -52,6 +52,12 @@ function setAuthState() {
   } else {
     showScreen(authScreen);
     logoutBtn.classList.add('hidden');
+    if (userGreeting) {
+      userGreeting.textContent = '';
+    }
+    if (userInfoText) {
+      userInfoText.textContent = '';
+    }
     if (adminCard) {
       adminCard.classList.add('hidden');
     }
@@ -596,24 +602,6 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   state.user = found;
   setAuthState();
   alert('로그인 되었습니다.');
-});
-
-document.getElementById('fingerprintEnrollBtn').addEventListener('click', () => {
-  alert('지문 등록이 완료되었습니다.');
-});
-
-document.getElementById('fingerprintLoginBtn').addEventListener('click', () => {
-  if (!state.users.length) {
-    alert('먼저 가입해 주세요.');
-    return;
-  }
-  const lastUser = state.users[state.users.length - 1];
-  if (lastUser.role === 'user' && lastUser.dischargeDate && new Date().toISOString().slice(0, 10) >= lastUser.dischargeDate) {
-    alert('전역일자가 지나 접속할 수 없습니다.');
-    return;
-  }
-  state.user = lastUser;
-  setAuthState();
 });
 
 const roleSelect = document.getElementById('roleSelect');
