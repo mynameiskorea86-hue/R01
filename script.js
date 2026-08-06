@@ -14,6 +14,17 @@ function normalizeUser(user) {
   };
 }
 
+const DEFAULT_ADMIN = {
+  milNumber: 'admin',
+  name: '관리자',
+  birthDate: '1990-01-01',
+  unitCode: '본부',
+  role: 'admin',
+  enlistDate: '',
+  dischargeDate: '',
+  password: 'admin123'
+};
+
 function canManageNotices() {
   return ['admin', 'commander'].includes(normalizeRole(state.user?.role));
 }
@@ -23,12 +34,29 @@ const state = {
   selectedMenu: null,
   adminEditing: null,
   users: JSON.parse(localStorage.getItem('users') || '[]').map(normalizeUser),
+  commanderRequests: JSON.parse(localStorage.getItem('commanderRequests') || '[]'),
   requests: JSON.parse(localStorage.getItem('leaveRequests') || '[]'),
   letters: JSON.parse(localStorage.getItem('letters') || '[]'),
   suggestions: JSON.parse(localStorage.getItem('suggestions') || '[]'),
   notices: JSON.parse(localStorage.getItem('notices') || '[]'),
   barberBookings: JSON.parse(localStorage.getItem('barberBookings') || '[]')
 };
+
+function ensureDefaultAdmin() {
+  const hasAdmin = state.users.some((user) => normalizeRole(user.role) === 'admin' && user.password);
+  if (!hasAdmin) {
+    const existingAdmin = state.users.find((user) => normalizeRole(user.role) === 'admin');
+    if (existingAdmin) {
+      existingAdmin.password = existingAdmin.password || DEFAULT_ADMIN.password;
+      existingAdmin.name = existingAdmin.name || DEFAULT_ADMIN.name;
+      existingAdmin.birthDate = existingAdmin.birthDate || DEFAULT_ADMIN.birthDate;
+      existingAdmin.unitCode = existingAdmin.unitCode || DEFAULT_ADMIN.unitCode;
+    } else {
+      state.users.push({ ...DEFAULT_ADMIN });
+    }
+    saveState();
+  }
+}
 
 const authScreen = document.getElementById('authScreen');
 const homeScreen = document.getElementById('homeScreen');
@@ -55,6 +83,7 @@ function showScreen(screen) {
 
 function saveState() {
   localStorage.setItem('users', JSON.stringify(state.users));
+  localStorage.setItem('commanderRequests', JSON.stringify(state.commanderRequests));
   localStorage.setItem('leaveRequests', JSON.stringify(state.requests));
   localStorage.setItem('letters', JSON.stringify(state.letters));
   localStorage.setItem('suggestions', JSON.stringify(state.suggestions));
@@ -87,7 +116,7 @@ function setAuthState() {
       userInfoText.textContent = `${state.user.milNumber} · ${state.user.unitCode}`;
     }
     if (adminCard) {
-      adminCard.classList.toggle('hidden', state.user.role !== 'admin');
+      adminCard.classList.toggle('hidden', !['admin', 'commander'].includes(state.user.role));
     }
   } else {
     showScreen(authScreen);
@@ -495,12 +524,33 @@ function renderAdminDetail() {
     <button id="downloadTemplateBtn" class="accent-btn">DB 양식 다운로드</button>
   `;
 
+  const requestSection = createElement('div', 'card');
+  if (['admin', 'commander'].includes(state.user.role)) {
+    requestSection.innerHTML = '<h3>지휘자 교체 요청</h3>';
+    const requestList = createElement('div');
+    if (state.commanderRequests.length === 0) {
+      requestList.innerHTML = '<div>현재 대기 중인 지휘자 교체 요청이 없습니다.</div>';
+    } else {
+      state.commanderRequests.forEach((request, index) => {
+        const row = createElement('div', 'list-box');
+        row.innerHTML = `<strong>${request.name}</strong> · ${request.milNumber}<br/>${request.unitCode} · ${request.birthDate}<br/>상태: ${request.status}`;
+        if (request.status === '승인대기') {
+          row.innerHTML += `<div class="action-row"><button class="ghost-btn primary-btn approve-commander" data-index="${index}">승인</button></div>`;
+        }
+        requestList.appendChild(row);
+      });
+    }
+    requestSection.appendChild(requestList);
+    detailContent.appendChild(requestSection);
+  }
+
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>등록된 가입자</h3>';
   const table = createElement('div', 'list-box');
   table.innerHTML = state.users.length ? state.users.map((user) => {
     const active = user.role === 'user' && user.dischargeDate && new Date().toISOString().slice(0, 10) >= user.dischargeDate ? ' (접속불가)' : '';
-    return `<div class="admin-user-row"><div><strong>${user.milNumber}</strong> · ${user.role}${active}<br/>${user.name || ''} · ${user.unitCode} · ${user.birthDate}${user.enlistDate ? '<br/>입대: ' + user.enlistDate : ''}${user.dischargeDate ? ' · 전역: ' + user.dischargeDate : ''}</div><div class="admin-user-actions"><button class="ghost-btn edit-user" data-mil="${user.milNumber}">수정</button><button class="ghost-btn danger-btn delete-user" data-mil="${user.milNumber}">삭제</button></div></div>`;
+    const withdrawn = user.password ? '' : ' (탈퇴/비활성)';
+    return `<div class="admin-user-row"><div><strong>${user.milNumber}</strong> · ${user.role}${active}${withdrawn}<br/>${user.name || ''} · ${user.unitCode} · ${user.birthDate}${user.enlistDate ? '<br/>입대: ' + user.enlistDate : ''}${user.dischargeDate ? ' · 전역: ' + user.dischargeDate : ''}</div><div class="admin-user-actions"><button class="ghost-btn edit-user" data-mil="${user.milNumber}">수정</button><button class="ghost-btn danger-btn delete-user" data-mil="${user.milNumber}">삭제</button></div></div>`;
   }).join('<hr/>') : '<div>등록된 가입자가 없습니다.</div>';
   list.appendChild(table);
   detailContent.appendChild(list);
@@ -538,6 +588,57 @@ function renderAdminDetail() {
       if (user) {
         fillForm(user);
       }
+    });
+  });
+
+  document.querySelectorAll('.approve-commander').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      const request = state.commanderRequests[index];
+      if (!request) return;
+
+      const currentCommander = state.users.find((user) => normalizeRole(user.role) === 'commander' && user.password);
+      if (currentCommander) {
+        currentCommander.password = null;
+        currentCommander.role = 'user';
+      }
+
+      const existingRequestUser = state.users.find((user) => user.milNumber === request.milNumber);
+      if (existingRequestUser) {
+        existingRequestUser.name = request.name;
+        existingRequestUser.birthDate = request.birthDate;
+        existingRequestUser.unitCode = request.unitCode;
+        existingRequestUser.role = 'commander';
+        existingRequestUser.enlistDate = request.enlistDate;
+        existingRequestUser.dischargeDate = request.dischargeDate;
+        existingRequestUser.password = request.password;
+      } else {
+        state.users.push({
+          milNumber: request.milNumber,
+          name: request.name,
+          birthDate: request.birthDate,
+          unitCode: request.unitCode,
+          role: 'commander',
+          enlistDate: request.enlistDate,
+          dischargeDate: request.dischargeDate,
+          password: request.password
+        });
+      }
+
+      request.status = '승인';
+      saveState();
+
+      const isApprovingSelf = state.user && currentCommander && state.user.milNumber === currentCommander.milNumber;
+      if (isApprovingSelf) {
+        alert('새 지휘자가 승인되었습니다. 이전 지휘자는 탈퇴 처리되었습니다. 다시 로그인해 주세요.');
+        state.user = null;
+        setAuthState();
+        showScreen(authScreen);
+        return;
+      }
+
+      alert('지휘자 교체 요청이 승인되었습니다.');
+      renderAdminDetail();
     });
   });
 
@@ -666,27 +767,78 @@ document.getElementById('registerForm').addEventListener('submit', (event) => {
     return;
   }
 
+  if (role === 'user' && (!enlistDate || !dischargeDate)) {
+    alert('용사는 입대일과 전역예정일을 반드시 입력해야 합니다.');
+    return;
+  }
+
   const matchingDb = state.users.find((user) =>
     user.milNumber === milNumber &&
     user.name === registerName &&
     user.birthDate === birthDate &&
     !user.password
   );
-  if (!matchingDb) {
+
+  const existingCommander = state.users.find((user) => normalizeRole(user.role) === 'commander' && user.password);
+  if (role === 'commander' && existingCommander) {
+    if (!matchingDb) {
+      alert('지휘자 교체 요청은 관리자 DB에 등록된 정보가 있어야 합니다.');
+      return;
+    }
+
+    const duplicateRequest = state.commanderRequests.find((request) => request.milNumber === milNumber && request.status === '승인대기');
+    if (duplicateRequest) {
+      alert('이미 지휘자 교체 요청이 접수되어 있습니다.');
+      return;
+    }
+
+    state.commanderRequests.push({
+      milNumber,
+      name: registerName,
+      birthDate,
+      unitCode,
+      role,
+      enlistDate: enlistDate || '',
+      dischargeDate: dischargeDate || '',
+      password,
+      status: '승인대기'
+    });
+
+    saveState();
+    event.target.reset();
+    updateMilitaryDateFields();
+    alert('지휘자 교체 요청이 접수되었습니다. 이전 지휘자의 승인을 기다려 주세요.');
+    showScreen(authScreen);
+    document.getElementById('loginMilNumber').focus();
+    return;
+  }
+
+  const isFirstAdminSignup = role === 'admin' && !state.users.some((user) => user.role === 'admin' && user.password);
+
+  if (!matchingDb && !isFirstAdminSignup) {
     alert('관리자가 미리 등록한 DB와 일치하는 정보가 필요합니다.');
     return;
   }
 
-  if (role === 'user' && (!enlistDate || !dischargeDate)) {
-    alert('용사는 입대일과 전역예정일을 반드시 입력해야 합니다.');
-    return;
+  if (matchingDb) {
+    matchingDb.unitCode = unitCode;
+    matchingDb.password = password;
+    matchingDb.role = role;
+    matchingDb.enlistDate = enlistDate;
+    matchingDb.dischargeDate = dischargeDate;
+  } else {
+    state.users.push({
+      milNumber,
+      name: registerName,
+      birthDate,
+      unitCode,
+      role,
+      enlistDate: enlistDate || '',
+      dischargeDate: dischargeDate || '',
+      password
+    });
   }
 
-  matchingDb.unitCode = unitCode;
-  matchingDb.password = password;
-  matchingDb.role = role;
-  matchingDb.enlistDate = enlistDate;
-  matchingDb.dischargeDate = dischargeDate;
   saveState();
   event.target.reset();
   updateMilitaryDateFields();
@@ -744,4 +896,5 @@ function updateMilitaryDateFields() {
 roleSelect.addEventListener('change', updateMilitaryDateFields);
 updateMilitaryDateFields();
 
+ensureDefaultAdmin();
 setAuthState();
