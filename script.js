@@ -522,9 +522,10 @@ function renderAdminDetail() {
     </label>
     <label>직책
       <select id="adminRole">
-        <option value="user">일반 사용자</option>
-        <option value="admin">관리자</option>
+        <option value="user">용사</option>
+        <option value="officer">간부</option>
         <option value="commander">지휘자</option>
+        <option value="admin">관리자</option>
       </select>
     </label>
     <label>입대일
