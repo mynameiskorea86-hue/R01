@@ -103,10 +103,15 @@ body {
 .screen.active {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 .hidden { display: none !important; }
 #homeScreen {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   border-radius: 28px;
   padding: 14px;
