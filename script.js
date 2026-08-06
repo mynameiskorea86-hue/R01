@@ -580,12 +580,17 @@ document.getElementById('registerForm').addEventListener('submit', (event) => {
   const milNumber = document.getElementById('milNumber').value.trim();
   const birthDate = document.getElementById('birthDate').value;
   const unitCode = document.getElementById('unitCode').value.trim();
+  const password = document.getElementById('registerPassword').value;
   const role = document.getElementById('roleSelect').value;
   const enlistDate = document.getElementById('enlistDate').value;
   const dischargeDate = document.getElementById('dischargeDate').value;
 
-  if (!milNumber || !birthDate || !unitCode) {
-    alert('군번, 생년월일, 부대 코드는 필수입니다.');
+  if (!milNumber || !birthDate || !unitCode || !password) {
+    alert('군번, 생년월일, 부대 코드, 패스워드는 필수입니다.');
+    return;
+  }
+  if (password.length < 4) {
+    alert('패스워드는 최소 4자리 이상이어야 합니다.');
     return;
   }
   if (role === 'user' && (!enlistDate || !dischargeDate)) {
@@ -597,7 +602,7 @@ document.getElementById('registerForm').addEventListener('submit', (event) => {
     return;
   }
 
-  const newUser = { milNumber, birthDate, unitCode, role, enlistDate, dischargeDate };
+  const newUser = { milNumber, birthDate, unitCode, password, role, enlistDate, dischargeDate };
   state.users.push(newUser);
   saveState();
   event.target.reset();
@@ -610,10 +615,15 @@ document.getElementById('registerForm').addEventListener('submit', (event) => {
 document.getElementById('loginForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const milNumber = document.getElementById('loginMilNumber').value.trim();
+  const password = document.getElementById('loginPassword').value;
   const found = state.users.find((user) => user.milNumber === milNumber);
 
   if (!found) {
     alert('가입된 계정이 없습니다.');
+    return;
+  }
+  if (!found.password || found.password !== password) {
+    alert('패스워드가 일치하지 않습니다.');
     return;
   }
   if (found.role === 'user' && found.dischargeDate && new Date().toISOString().slice(0, 10) >= found.dischargeDate) {
