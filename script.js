@@ -901,6 +901,13 @@ if (registerSubmitButton) {
   registerSubmitButton.addEventListener('click', () => console.log('register button clicked'));
 }
 
+const loginForm = document.getElementById('loginForm');
+if (!loginForm) {
+  console.error('loginForm element not found');
+} else {
+  console.log('loginForm handler attached');
+}
+
 document.getElementById('loginForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const milNumber = document.getElementById('loginMilNumber').value.trim();
