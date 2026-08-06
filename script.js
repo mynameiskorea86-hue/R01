@@ -386,7 +386,7 @@ function renderNoticeDetail() {
 }
 
 function downloadUserDbTemplate() {
-  const template = 'milNumber,birthDate,unitCode,role,enlistDate,dischargeDate\n';
+  const template = 'milNumber,name,birthDate,unitCode,role,enlistDate,dischargeDate\n';
   const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -402,6 +402,9 @@ function renderAdminDetail() {
   detailContent.innerHTML = `
     <label>군번
       <input type="text" id="adminMilNumber" placeholder="예: 21-123456" />
+    </label>
+    <label>이름
+      <input type="text" id="adminName" placeholder="예: 홍길동" />
     </label>
     <label>생년월일
       <input type="date" id="adminBirthDate" />
@@ -434,7 +437,7 @@ function renderAdminDetail() {
   const table = createElement('div', 'list-box');
   table.innerHTML = state.users.length ? state.users.map((user) => {
     const active = user.role === 'user' && user.dischargeDate && new Date().toISOString().slice(0, 10) >= user.dischargeDate ? ' (접속불가)' : '';
-    return `<div class="admin-user-row"><div><strong>${user.milNumber}</strong> · ${user.role}${active}<br/>${user.unitCode} · ${user.birthDate}${user.enlistDate ? '<br/>입대: ' + user.enlistDate : ''}${user.dischargeDate ? ' · 전역: ' + user.dischargeDate : ''}</div><div class="admin-user-actions"><button class="ghost-btn edit-user" data-mil="${user.milNumber}">수정</button><button class="ghost-btn danger-btn delete-user" data-mil="${user.milNumber}">삭제</button></div></div>`;
+    return `<div class="admin-user-row"><div><strong>${user.milNumber}</strong> · ${user.role}${active}<br/>${user.name || ''} · ${user.unitCode} · ${user.birthDate}${user.enlistDate ? '<br/>입대: ' + user.enlistDate : ''}${user.dischargeDate ? ' · 전역: ' + user.dischargeDate : ''}</div><div class="admin-user-actions"><button class="ghost-btn edit-user" data-mil="${user.milNumber}">수정</button><button class="ghost-btn danger-btn delete-user" data-mil="${user.milNumber}">삭제</button></div></div>`;
   }).join('<hr/>') : '<div>등록된 가입자가 없습니다.</div>';
   list.appendChild(table);
   detailContent.appendChild(list);
@@ -442,6 +445,7 @@ function renderAdminDetail() {
   const fillForm = (user) => {
     state.adminEditing = user.milNumber;
     document.getElementById('adminMilNumber').value = user.milNumber;
+    document.getElementById('adminName').value = user.name || '';
     document.getElementById('adminBirthDate').value = user.birthDate;
     document.getElementById('adminUnitCode').value = user.unitCode;
     document.getElementById('adminRole').value = user.role;
@@ -454,6 +458,7 @@ function renderAdminDetail() {
   const resetForm = () => {
     state.adminEditing = null;
     document.getElementById('adminMilNumber').value = '';
+    document.getElementById('adminName').value = '';
     document.getElementById('adminBirthDate').value = '';
     document.getElementById('adminUnitCode').value = '';
     document.getElementById('adminRole').value = 'user';
@@ -486,13 +491,14 @@ function renderAdminDetail() {
 
   document.getElementById('addUserDbBtn').addEventListener('click', () => {
     const milNumber = document.getElementById('adminMilNumber').value.trim();
+    const name = document.getElementById('adminName').value.trim();
     const birthDate = document.getElementById('adminBirthDate').value;
     const unitCode = document.getElementById('adminUnitCode').value.trim();
     const role = document.getElementById('adminRole').value;
     const enlistDate = document.getElementById('adminEnlistDate').value;
     const dischargeDate = document.getElementById('adminDischargeDate').value;
-    if (!milNumber || !birthDate || !unitCode) {
-      alert('군번, 생년월일, 부대 코드는 필수입니다.');
+    if (!milNumber || !name || !birthDate || !unitCode) {
+      alert('군번, 이름, 생년월일, 부대 코드는 필수입니다.');
       return;
     }
 
@@ -500,6 +506,7 @@ function renderAdminDetail() {
       const existing = state.users.find((user) => user.milNumber === state.adminEditing);
       if (existing) {
         existing.milNumber = milNumber;
+        existing.name = name;
         existing.birthDate = birthDate;
         existing.unitCode = unitCode;
         existing.role = role;
@@ -514,12 +521,12 @@ function renderAdminDetail() {
       }
     }
 
-    if (state.users.some((user) => user.milNumber === milNumber)) {
-      alert('이미 등록된 군번입니다.');
+    if (state.users.some((user) => user.milNumber === milNumber && !user.password)) {
+      alert('이미 DB에 등록된 군번입니다.');
       return;
     }
 
-    state.users.push({ milNumber, birthDate, unitCode, role, enlistDate, dischargeDate });
+    state.users.push({ milNumber, name, birthDate, unitCode, role, enlistDate, dischargeDate, password: null });
     resetForm();
     saveState();
     renderAdminDetail();
@@ -585,25 +592,38 @@ document.getElementById('registerForm').addEventListener('submit', (event) => {
   const enlistDate = document.getElementById('enlistDate').value;
   const dischargeDate = document.getElementById('dischargeDate').value;
 
-  if (!milNumber || !birthDate || !unitCode || !password) {
-    alert('군번, 생년월일, 부대 코드, 패스워드는 필수입니다.');
+  const registerName = document.getElementById('registerName').value.trim();
+
+  if (!milNumber || !registerName || !birthDate || !unitCode || !password) {
+    alert('군번, 이름, 생년월일, 부대 코드, 패스워드는 필수입니다.');
     return;
   }
   if (password.length < 4) {
     alert('패스워드는 최소 4자리 이상이어야 합니다.');
     return;
   }
+
+  const matchingDb = state.users.find((user) =>
+    user.milNumber === milNumber &&
+    user.name === registerName &&
+    user.birthDate === birthDate &&
+    !user.password
+  );
+  if (!matchingDb) {
+    alert('관리자가 미리 등록한 DB와 일치하는 정보가 필요합니다.');
+    return;
+  }
+
   if (role === 'user' && (!enlistDate || !dischargeDate)) {
     alert('용사는 입대일과 전역예정일을 반드시 입력해야 합니다.');
     return;
   }
-  if (state.users.some((user) => user.milNumber === milNumber)) {
-    alert('이미 등록된 군번입니다.');
-    return;
-  }
 
-  const newUser = { milNumber, birthDate, unitCode, password, role, enlistDate, dischargeDate };
-  state.users.push(newUser);
+  matchingDb.unitCode = unitCode;
+  matchingDb.password = password;
+  matchingDb.role = role;
+  matchingDb.enlistDate = enlistDate;
+  matchingDb.dischargeDate = dischargeDate;
   saveState();
   event.target.reset();
   updateMilitaryDateFields();
