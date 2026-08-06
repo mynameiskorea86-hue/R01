@@ -853,9 +853,10 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const milNumber = document.getElementById('loginMilNumber').value.trim();
   const password = document.getElementById('loginPassword').value;
+  const adminLogin = milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password;
   let found = state.users.find((user) => user.milNumber === milNumber);
 
-  if (!found && milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password) {
+  if (!found && adminLogin) {
     found = { ...DEFAULT_ADMIN };
     state.users.push(found);
     saveState();
@@ -867,8 +868,12 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   }
 
   if (!found.password || found.password !== password) {
-    if (found.milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password) {
+    if (adminLogin) {
       found.password = DEFAULT_ADMIN.password;
+      found.role = 'admin';
+      found.name = found.name || DEFAULT_ADMIN.name;
+      found.birthDate = found.birthDate || DEFAULT_ADMIN.birthDate;
+      found.unitCode = found.unitCode || DEFAULT_ADMIN.unitCode;
       saveState();
     } else {
       alert('패스워드가 일치하지 않습니다.');
