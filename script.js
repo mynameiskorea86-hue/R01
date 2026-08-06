@@ -862,36 +862,38 @@ if (!registerForm) {
 
     if (!matchingDb && !isFirstAdminSignup) {
       alert('관리자가 사전에 등록한 가입자 DB 정보와 일치하지 않습니다. 관리자에게 등록 정보를 확인해 주세요.');
-
-      if (matchingDb) {
-        matchingDb.unitCode = unitCode;
-        matchingDb.password = password;
-        matchingDb.role = role;
-        matchingDb.enlistDate = enlistDate;
-        matchingDb.dischargeDate = dischargeDate;
-      } else {
-        state.users.push({
-          milNumber,
-          name: registerName,
-          birthDate,
-          unitCode,
-          role,
-          enlistDate: enlistDate || '',
-          dischargeDate: dischargeDate || '',
-          password
-        });
-      }
-
-      saveState();
-      event.target.reset();
-      updateMilitaryDateFields();
-      alert('가입이 완료되었습니다. 로그인 창에서 로그인해 주세요.');
-      showScreen(authScreen);
-      document.getElementById('loginMilNumber').focus();
-    } catch (error) {
-      console.error('Registration error:', error);
-      alert('가입 처리 중 오류가 발생했습니다. 입력값을 확인하거나 콘솔을 확인해 주세요.');
+      return;
     }
+
+    if (matchingDb) {
+      matchingDb.unitCode = unitCode;
+      matchingDb.password = password;
+      matchingDb.role = role;
+      matchingDb.enlistDate = enlistDate;
+      matchingDb.dischargeDate = dischargeDate;
+    } else {
+      state.users.push({
+        milNumber,
+        name: registerName,
+        birthDate,
+        unitCode,
+        role,
+        enlistDate: enlistDate || '',
+        dischargeDate: dischargeDate || '',
+        password
+      });
+    }
+
+    saveState();
+    event.target.reset();
+    updateMilitaryDateFields();
+    alert('가입이 완료되었습니다. 로그인 창에서 로그인해 주세요.');
+    showScreen(authScreen);
+    document.getElementById('loginMilNumber').focus();
+  } catch (error) {
+    console.error('Registration error:', error);
+    alert('가입 처리 중 오류가 발생했습니다. 입력값을 확인하거나 콘솔을 확인해 주세요.');
+  }
   });
 }
 
