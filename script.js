@@ -1,8 +1,28 @@
+function normalizeRole(role) {
+  if (!role || typeof role !== 'string') return role;
+  if (role === '관리자') return 'admin';
+  if (role === '지휘자') return 'commander';
+  if (role === '간부') return 'officer';
+  if (role === '용사') return 'user';
+  return role;
+}
+
+function normalizeUser(user) {
+  return {
+    ...user,
+    role: normalizeRole(user.role)
+  };
+}
+
+function canManageNotices() {
+  return ['admin', 'commander'].includes(normalizeRole(state.user?.role));
+}
+
 const state = {
   user: null,
   selectedMenu: null,
   adminEditing: null,
-  users: JSON.parse(localStorage.getItem('users') || '[]'),
+  users: JSON.parse(localStorage.getItem('users') || '[]').map(normalizeUser),
   requests: JSON.parse(localStorage.getItem('leaveRequests') || '[]'),
   letters: JSON.parse(localStorage.getItem('letters') || '[]'),
   suggestions: JSON.parse(localStorage.getItem('suggestions') || '[]'),
@@ -57,6 +77,7 @@ function showRegisterCard() {
 function setAuthState() {
   const adminCard = document.getElementById('adminCard');
   if (state.user) {
+    state.user.role = normalizeRole(state.user.role);
     showScreen(homeScreen);
     logoutBtn.classList.remove('hidden');
     if (userGreeting) {
@@ -371,7 +392,7 @@ function renderNoticeDetail() {
   detailTitle.textContent = '공지사항';
   detailContent.innerHTML = '';
 
-  if (['commander', 'admin'].includes(state.user.role)) {
+  if (canManageNotices()) {
     detailContent.innerHTML += `
       <label>공지 제목
         <input type="text" id="noticeTitle" placeholder="공지 제목을 입력해 주세요." />
@@ -394,7 +415,7 @@ function renderNoticeDetail() {
   noticeItems.forEach((item, index) => {
     const row = createElement('div', 'list-box');
     row.innerHTML = `<strong>${item.title}</strong>${item.text ? '<br/>' + item.text : ''}${item.author ? '<br/><span class="badge">작성자: ' + item.author + '</span>' : ''}`;
-    if (['commander', 'admin'].includes(state.user.role) && item.author !== 'system') {
+    if (canManageNotices() && item.author !== 'system') {
       row.innerHTML += `<div class="action-row"><button class="ghost-btn danger-btn delete-notice" data-index="${index}">삭제</button></div>`;
     }
     noticeList.appendChild(row);
@@ -402,7 +423,7 @@ function renderNoticeDetail() {
 
   detailContent.appendChild(noticeList);
 
-  if (['commander', 'admin'].includes(state.user.role)) {
+  if (canManageNotices()) {
     document.getElementById('submitNoticeBtn').addEventListener('click', () => {
       const title = document.getElementById('noticeTitle').value.trim();
       const text = document.getElementById('noticeText').value.trim();
