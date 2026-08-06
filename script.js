@@ -924,13 +924,15 @@ if (!loginForm) {
 
 const loginSubmitButton = loginForm?.querySelector('button[type="submit"]');
 if (loginSubmitButton) {
+  console.log('login submit button found');
   loginSubmitButton.addEventListener('click', () => console.log('login button clicked'));
 } else {
   console.warn('login submit button not found');
 }
 
-document.getElementById('loginForm').addEventListener('submit', (event) => {
-  event.preventDefault();
+function handleLoginSubmit(event) {
+  if (event) event.preventDefault();
+  console.log('login submit triggered');
   const milNumber = document.getElementById('loginMilNumber').value.trim();
   const password = document.getElementById('loginPassword').value;
   const adminLogin = milNumber === DEFAULT_ADMIN.milNumber && password === DEFAULT_ADMIN.password;
@@ -972,7 +974,9 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   homeScreen.scrollTop = 0;
   logoutBtn.classList.remove('hidden');
   alert('로그인 되었습니다.');
-});
+}
+
+document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
 
 document.getElementById('showRegisterBtn').addEventListener('click', () => {
   showRegisterCard();
