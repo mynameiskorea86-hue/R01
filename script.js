@@ -1,3 +1,4 @@
+console.log('script.js loaded');
 function normalizeRole(role) {
   if (!role || typeof role !== 'string') return role;
   if (role === '관리자') return 'admin';
@@ -919,6 +920,13 @@ if (!loginForm) {
   console.error('loginForm element not found');
 } else {
   console.log('loginForm handler attached');
+}
+
+const loginSubmitButton = loginForm?.querySelector('button[type="submit"]');
+if (loginSubmitButton) {
+  loginSubmitButton.addEventListener('click', () => console.log('login button clicked'));
+} else {
+  console.warn('login submit button not found');
 }
 
 document.getElementById('loginForm').addEventListener('submit', (event) => {
