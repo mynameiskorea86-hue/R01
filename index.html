@@ -8,7 +8,21 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>부대 소통 활성화 앱</title>
-    <link rel="stylesheet" href="styles.css?v=20260806" />
+    <script>
+      (() => {
+        const APP_VERSION = '20260806-2';
+        window.APP_VERSION = APP_VERSION;
+        const params = new URLSearchParams(window.location.search);
+        const currentVersion = params.get('v');
+        if (currentVersion !== APP_VERSION) {
+          params.set('v', APP_VERSION);
+          const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+          window.location.replace(nextUrl);
+          return;
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css?v=20260806-2" />
   </head>
   <body>
     <div class="page-background">
@@ -136,7 +150,7 @@
       </section>
     </div>
 
-    <script src="script.js?v=20260806"></script>
+    <script src="script.js?v=20260806-2"></script>
       </div>
     </div>
   </body>
