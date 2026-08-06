@@ -25,9 +25,11 @@ function showScreen(screen) {
   const screens = [authScreen, homeScreen, detailScreen];
   screens.forEach((item) => {
     item.classList.remove('active');
+    item.classList.add('hidden');
     item.style.display = 'none';
   });
   screen.classList.add('active');
+  screen.classList.remove('hidden');
   screen.style.display = 'flex';
 }
 
