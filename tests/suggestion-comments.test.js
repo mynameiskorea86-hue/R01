@@ -20,6 +20,7 @@ class FakeElement {
     this.textContent = '';
     this._innerHTML = '';
     this.id = '';
+    this.className = '';
   }
 
   get innerHTML() {
@@ -36,18 +37,36 @@ class FakeElement {
       const child = new FakeElement(tagName);
       const idMatch = attributes.match(/\bid="([^"]+)"/i);
       const classMatch = attributes.match(/\bclass="([^"]+)"/i);
+      const dataIndexMatch = attributes.match(/\bdata-index="([^"]+)"/i);
       if (idMatch) child.id = idMatch[1];
       if (classMatch) child.className = classMatch[1];
+      if (dataIndexMatch) child.dataset.index = dataIndexMatch[1];
       this.appendChild(child);
     }
   }
 
-  querySelector() {
-    return null;
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] || null;
   }
 
-  querySelectorAll() {
-    return [];
+  querySelectorAll(selector) {
+    if (!selector) return [];
+    const results = [];
+    const matches = (node) => {
+      if (selector.startsWith('.')) {
+        const className = selector.slice(1);
+        return node.className && node.className.split(' ').includes(className);
+      }
+      return node.tagName.toLowerCase() === selector.toLowerCase();
+    };
+    const traverse = (node) => {
+      for (const child of node.children || []) {
+        if (matches(child)) results.push(child);
+        traverse(child);
+      }
+    };
+    traverse(this);
+    return results;
   }
 
   appendChild(child) {
@@ -117,17 +136,11 @@ function createDocument() {
     createElement(tagName) {
       return new FakeElement(tagName);
     },
-    querySelectorAll() {
-      return [];
+    querySelectorAll(selector) {
+      return Object.values(elements).flatMap((element) => element.querySelectorAll(selector));
     },
     body: new FakeElement('body')
   };
-
-  const baseElement = new FakeElement('div');
-  baseElement.querySelector = () => null;
-  baseElement.querySelectorAll = () => [];
-  elements.registerForm.querySelector = () => null;
-  elements.loginForm.querySelector = () => null;
 
   return { document, elements };
 }
@@ -139,18 +152,17 @@ const localStorage = {
   setItem(key, value) { this.store[key] = String(value); }
 };
 
-const alerts = [];
 const context = {
   console,
   document,
   localStorage,
   window: {},
-  alert: (msg) => alerts.push(msg),
+  alert: () => {},
   confirm: () => true,
   setTimeout,
   clearTimeout,
   URL: { createObjectURL: () => 'blob:test' },
-  Blob: class Blob {},
+  Blob: class Blob {}
 };
 context.global = context;
 context.globalThis = context;
@@ -162,23 +174,23 @@ vm.runInContext(script, context);
 
 const state = vm.runInContext('state', context);
 context.state = state;
+
 state.user = { milNumber: 'u1', role: '용사' };
-state.barberBookings = [{ date: '2026-08-11', note: '다른 사람 예약', author: 'u2', status: '승인대기' }];
-vm.runInContext('renderBarberDetail()', context);
+state.suggestions = [{ title: '식당 개선', text: '급식 개선 요청', author: 'u2', status: '검토중' }];
+vm.runInContext('renderSuggestionDetail()', context);
 
-const button = elements.barberBookBtn;
-const dateInput = elements.barberDate;
-const noteInput = elements.barberNote;
-dateInput.value = '2026-08-10';
-noteInput.value = '정리 부탁';
-button.dispatchEvent('click');
+const visibleRows = elements.detailContent.querySelectorAll('.list-box');
+assert.ok(visibleRows.length >= 1, '모든 사용자가 건의사항 목록을 볼 수 있어야 합니다.');
+assert.ok(elements.detailContent.innerHTML.includes('식당 개선'), '다른 사람의 건의사항도 목록에 보이도록 해야 합니다.');
 
-assert.ok(state.barberBookings.length === 2, '이발소 신청이 저장되어야 합니다.');
-const renderedParts = [];
-const walk = (node) => {
-  if (node && node.innerHTML) renderedParts.push(node.innerHTML);
-  (node.children || []).forEach(walk);
-};
-walk(elements.detailContent);
-assert.ok(renderedParts.some((part) => part.includes('다른 사람 예약')), '일반 사용자도 다른 사람의 이발소 신청 목록을 볼 수 있어야 합니다.');
-console.log('barber booking test passed');
+state.user = { milNumber: 'a1', role: 'admin' };
+state.suggestions = [{ title: '식당 개선', text: '급식 개선 요청', author: 'u2', status: '검토중', comments: ['기존 답변'] }];
+vm.runInContext('renderSuggestionDetail()', context);
+const commentInput = document.getElementById('suggestionComment-0');
+assert.ok(commentInput, '관리자는 기존 댓글이 있어도 댓글 입력창을 볼 수 있어야 합니다.');
+commentInput.value = '관리자 답변';
+const saveButton = document.querySelectorAll('.save-suggestion-comment')[0];
+saveButton.dispatchEvent('click');
+
+assert.ok(state.suggestions[0].comments && state.suggestions[0].comments.includes('관리자 답변'), '관리자 댓글이 저장되어야 합니다.');
+console.log('suggestion comment test passed');

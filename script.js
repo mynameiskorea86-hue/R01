@@ -457,9 +457,7 @@ function renderBarberDetail() {
 
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>예약 내역</h3>';
-  const visibleBookings = ['commander', 'admin'].includes(currentRole)
-    ? state.barberBookings
-    : state.barberBookings.filter((item) => item.author === state.user.milNumber);
+  const visibleBookings = state.barberBookings.slice();
 
   if (!visibleBookings.length) {
     list.innerHTML += '<div>확인 가능한 예약 내역이 없습니다.</div>';
@@ -548,9 +546,7 @@ function renderSuggestionDetail() {
 
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>건의사항 현황</h3>';
-  const visibleSuggestions = ['commander', 'admin'].includes(currentRole)
-    ? state.suggestions
-    : state.suggestions.filter((item) => item.author === state.user.milNumber);
+  const visibleSuggestions = state.suggestions.slice();
 
   if (!visibleSuggestions.length) {
     list.innerHTML += '<div>확인 가능한 건의사항이 없습니다.</div>';
@@ -562,8 +558,15 @@ function renderSuggestionDetail() {
         : item.status === '조치완료'
           ? 'status status-complete'
           : 'status';
-      row.innerHTML = `<strong>${item.title}</strong><br/>${item.text}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="${statusClass}">${item.status || '검토중'}</span>`;
-      if ((state.user.role === 'commander' || state.user.role === 'admin') && (item.status === '검토중' || !item.status)) {
+      const commentList = Array.isArray(item.comments) && item.comments.length
+        ? item.comments.map((comment) => `<div class="list-box"><strong>댓글</strong><br/>${comment}</div>`).join('')
+        : '';
+      const isAdmin = ['commander', 'admin'].includes(currentRole);
+      const commentInputHtml = isAdmin && (!Array.isArray(item.comments) || item.comments.length === 0)
+        ? `<label>관리자 댓글<br/><textarea id="suggestionComment-${index}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-suggestion-comment" data-index="${index}">댓글 저장</button>`
+        : '';
+      row.innerHTML = `<strong>${item.title}</strong><br/>${item.text}<br/>${item.author ? '작성자: ' + item.author + '<br/>' : ''}<span class="${statusClass}">${item.status || '검토중'}</span>${commentList}${commentInputHtml}`;
+      if (isAdmin && (item.status === '검토중' || !item.status)) {
         row.innerHTML += `<div class="action-row"><button class="ghost-btn approve-suggestion" data-index="${index}">조치완료</button><button class="ghost-btn danger-btn reject-suggestion" data-index="${index}">미승인</button></div>`;
       }
       list.appendChild(row);
@@ -600,6 +603,25 @@ function renderSuggestionDetail() {
       state.suggestions[index].status = '미승인';
       saveState();
       renderSuggestionDetail();
+    });
+  });
+  document.querySelectorAll('.save-suggestion-comment').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      const commentTextarea = document.getElementById(`suggestionComment-${index}`);
+      if (!commentTextarea) return;
+      const comment = commentTextarea.value.trim();
+      if (!comment) {
+        alert('댓글 내용을 입력해 주세요.');
+        return;
+      }
+      if (!Array.isArray(state.suggestions[index].comments)) {
+        state.suggestions[index].comments = [];
+      }
+      state.suggestions[index].comments.push(comment);
+      saveState();
+      renderSuggestionDetail();
+      alert('댓글이 저장되었습니다.');
     });
   });
 }
