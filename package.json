@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "node tests/barber.test.js && node tests/leave-regions.test.js && node tests/cache-busting.test.js"
+    "test": "node tests/barber.test.js && node tests/leave-regions.test.js && node tests/cache-busting.test.js && node tests/letter-comments.test.js"
   },
   "repository": {
     "type": "git",

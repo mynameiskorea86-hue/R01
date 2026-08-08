@@ -38,120 +38,119 @@
             <button id="logoutBtn" class="ghost-btn hidden">로그아웃</button>
           </header>
 
-      <section id="authScreen" class="screen active">
-        <div class="card">
-          <h2>로그인</h2>
-          <form id="loginForm">
-            <label>군번
-              <input type="text" id="loginMilNumber" placeholder="군번 입력" required />
-            </label>
-            <label>패스워드
-              <input type="password" id="loginPassword" placeholder="패스워드 입력" required />
-            </label>
-            <div class="action-row">
-              <button type="submit" class="primary-btn">로그인</button>
-              <button type="button" id="showRegisterBtn" class="ghost-btn">가입하기</button>
+          <section id="authScreen" class="screen active">
+            <div class="card">
+              <h2>로그인</h2>
+              <form id="loginForm">
+                <label>군번
+                  <input type="text" id="loginMilNumber" placeholder="군번 입력" required />
+                </label>
+                <label>패스워드
+                  <input type="password" id="loginPassword" placeholder="패스워드 입력" required />
+                </label>
+                <div class="action-row">
+                  <button type="submit" class="primary-btn">로그인</button>
+                  <button type="button" id="showRegisterBtn" class="ghost-btn">가입하기</button>
+                </div>
+              </form>
             </div>
-          </form>
-        </div>
 
-        <div id="registerCard" class="card hidden">
-          <h2>회원가입</h2>
-          <form id="registerForm">
-            <label>군번
-              <input type="text" id="milNumber" placeholder="예: 21-123456" required />
-            </label>
-            <label>이름
-              <input type="text" id="registerName" placeholder="예: 홍길동" required />
-            </label>
-            <label>생년월일
-              <input type="date" id="birthDate" required />
-            </label>
-            <label>부대 코드
-              <input type="text" id="unitCode" placeholder="예: 1-1대대" required />
-            </label>
-            <label>직책
-              <select id="roleSelect">
-                <option value="user">용사</option>
-                <option value="officer">간부</option>
-                <option value="commander">지휘자</option>
-                <option value="admin">관리자</option>
-              </select>
-            </label>
-            <label>입대일
-              <input type="date" id="enlistDate" />
-            </label>
-            <label>전역예정일
-              <input type="date" id="dischargeDate" />
-            </label>
-            <label>패스워드
-              <input type="password" id="registerPassword" placeholder="패스워드 입력" required />
-            </label>
-            <button type="submit" class="primary-btn">가입하기</button>
-          </form>
-        </div>
-      </section>
-
-      <section id="homeScreen" class="screen">
-        <div class="hero-panel">
-          <div class="hero-top">
-            <div class="hero-logo">5기갑</div>
-            <div class="hero-title-wrap">
-              <h1>5기갑 방공대 커뮤니티</h1>
+            <div id="registerCard" class="card hidden">
+              <h2>회원가입</h2>
+              <form id="registerForm">
+                <label>군번
+                  <input type="text" id="milNumber" placeholder="예: 21-123456" required />
+                </label>
+                <label>이름
+                  <input type="text" id="registerName" placeholder="예: 홍길동" required />
+                </label>
+                <label>생년월일
+                  <input type="date" id="birthDate" required />
+                </label>
+                <label>부대 코드
+                  <input type="text" id="unitCode" placeholder="예: 1-1대대" required />
+                </label>
+                <label>직책
+                  <select id="roleSelect">
+                    <option value="user">용사</option>
+                    <option value="officer">간부</option>
+                    <option value="commander">지휘자</option>
+                    <option value="admin">관리자</option>
+                  </select>
+                </label>
+                <label>입대일
+                  <input type="date" id="enlistDate" />
+                </label>
+                <label>전역예정일
+                  <input type="date" id="dischargeDate" />
+                </label>
+                <label>패스워드
+                  <input type="password" id="registerPassword" placeholder="패스워드 입력" required />
+                </label>
+                <button type="submit" class="primary-btn">가입하기</button>
+              </form>
             </div>
-          </div>
-          <div class="user-summary">
-            <p id="userGreeting">환영합니다</p>
-            <p id="userInfoText">군번 · 소속</p>
-          </div>
-        </div>
+          </section>
 
-        <div class="menu-grid home-menu">
-          <button class="menu-card" data-menu="leave">
-            <h3>방공대 출타신청</h3>
-            <span class="menu-icon">📅</span>
-          </button>
-          <button class="menu-card" data-menu="letter">
-            <h3>대장과의 대화</h3>
-            <span class="menu-icon">💬</span>
-            <p>마음의 편지</p>
-          </button>
-          <button class="menu-card" data-menu="barber">
-            <h3>이발소 신청</h3>
-            <span class="menu-icon">✂️</span>
-          </button>
-          <button class="menu-card" data-menu="suggestion">
-            <h3>건의사항</h3>
-            <span class="menu-icon">📝</span>
-          </button>
-          <button class="menu-card notice-card" data-menu="notice">
-            <div class="notice-content">
-              <h3>공지사항</h3>
-              <span class="menu-icon">📢</span>
+          <section id="homeScreen" class="screen">
+            <div class="hero-panel">
+              <div class="hero-top">
+                <div class="hero-logo">5기갑</div>
+                <div class="hero-title-wrap">
+                  <h1>5기갑 방공대 커뮤니티</h1>
+                </div>
+              </div>
+              <div class="user-summary">
+                <p id="userGreeting">환영합니다</p>
+                <p id="userInfoText">군번 · 소속</p>
+              </div>
             </div>
-          </button>
-          <button class="menu-card notice-card hidden" data-menu="admin" id="adminCard">
-            <div class="notice-content">
-              <h3>관리자 DB</h3>
-              <span class="menu-icon">🗂️</span>
+
+            <div class="menu-grid home-menu">
+              <button class="menu-card" data-menu="leave">
+                <h3>방공대 출타신청</h3>
+                <span class="menu-icon">📅</span>
+              </button>
+              <button class="menu-card" data-menu="letter">
+                <h3>대장과의 대화</h3>
+                <span class="menu-icon">💬</span>
+                <p>마음의 편지</p>
+              </button>
+              <button class="menu-card" data-menu="barber">
+                <h3>이발소 신청</h3>
+                <span class="menu-icon">✂️</span>
+              </button>
+              <button class="menu-card" data-menu="suggestion">
+                <h3>건의사항</h3>
+                <span class="menu-icon">📝</span>
+              </button>
+              <button class="menu-card notice-card" data-menu="notice">
+                <div class="notice-content">
+                  <h3>공지사항</h3>
+                  <span class="menu-icon">📢</span>
+                </div>
+              </button>
+              <button class="menu-card notice-card hidden" data-menu="admin" id="adminCard">
+                <div class="notice-content">
+                  <h3>관리자 DB</h3>
+                  <span class="menu-icon">🗂️</span>
+                </div>
+              </button>
             </div>
-          </button>
-        </div>
-      </section>
+          </section>
 
-      <section id="detailScreen" class="screen">
-        <div class="card">
-          <div class="detail-header">
-            <h2 id="detailTitle">상세 화면</h2>
-            <button id="backToHomeBtn" class="ghost-btn">메인으로</button>
-          </div>
-          <div id="detailContent"></div>
+          <section id="detailScreen" class="screen">
+            <div class="card">
+              <div class="detail-header">
+                <h2 id="detailTitle">상세 화면</h2>
+                <button id="backToHomeBtn" class="ghost-btn">메인으로</button>
+              </div>
+              <div id="detailContent"></div>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
-
-    <script src="script.js?v=20260806-2"></script>
       </div>
     </div>
+    <script src="script.js?v=20260806-2"></script>
   </body>
 </html>

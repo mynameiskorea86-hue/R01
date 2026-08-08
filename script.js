@@ -53,7 +53,8 @@ const state = {
   letters: loadStateArray('letters'),
   suggestions: loadStateArray('suggestions'),
   notices: loadStateArray('notices'),
-  barberBookings: loadStateArray('barberBookings')
+  barberBookings: loadStateArray('barberBookings'),
+  letterCommentEditingIndex: null
 };
 
 function ensureDefaultAdmin() {
@@ -345,10 +346,7 @@ function renderLetterDetail() {
 
   const list = createElement('div', 'card');
   list.innerHTML = '<h3>대장과의 대화 목록</h3>';
-  const visibleLetters = state.letters.filter((item) => {
-    if (['commander', 'admin'].includes(currentRole)) return true;
-    return item.author === state.user.milNumber;
-  });
+  const visibleLetters = state.letters.slice();
 
   if (!visibleLetters.length) {
     list.innerHTML += '<div>확인 가능한 대화가 없습니다.</div>';
@@ -357,8 +355,21 @@ function renderLetterDetail() {
       const row = createElement('div', 'list-box');
       const statusText = item.status || '검토중';
       const statusClass = statusText === '검토중' ? 'status status-pending' : statusText === '처리완료' ? 'status status-complete' : 'status';
-      const badgeText = `작성자${item.author === state.user.milNumber ? ' 본인' : ''}${['commander', 'admin'].includes(currentRole) ? ' · 지휘관 확인 가능' : ''}`;
-      row.innerHTML = `<strong>${item.author}</strong><br/>${item.text}<br/><span class="${statusClass}">${statusText}</span><br/><span class="badge">${badgeText}</span>`;
+      const canViewLetterContent = ['commander', 'admin'].includes(currentRole) || item.author === state.user?.milNumber;
+      const contentText = canViewLetterContent ? item.text : '내용은 확인할 수 없습니다.';
+      const badgeText = `작성자${item.author === state.user?.milNumber ? ' 본인' : ''}${['commander', 'admin'].includes(currentRole) ? ' · 지휘관 확인 가능' : ''}`;
+      const comments = Array.isArray(item.comments) ? item.comments : [];
+      const commentList = canViewLetterContent && comments.length
+        ? comments.map((comment) => `<div class="list-box"><strong>댓글</strong><br/>${comment}</div>`).join('')
+        : '';
+      const isCommentEditing = ['commander', 'admin'].includes(currentRole) && state.letterCommentEditingIndex === index;
+      const commentInputHtml = ['commander', 'admin'].includes(currentRole) && (comments.length === 0 || isCommentEditing)
+        ? `<label>지휘자 댓글<br/><textarea id="letterComment-${index}" class="comment-textarea" placeholder="댓글을 입력해 주세요."></textarea></label><button class="ghost-btn save-letter-comment" data-index="${index}">댓글 저장</button>`
+        : '';
+      const addButtonHtml = ['commander', 'admin'].includes(currentRole) && comments.length > 0 && !isCommentEditing
+        ? `<div class="action-row"><button class="ghost-btn add-letter-comment" data-index="${index}">댓글 추가</button></div>`
+        : '';
+      row.innerHTML = `<strong>${item.author}</strong><br/>${contentText}<br/><span class="${statusClass}">${statusText}</span><br/><span class="badge">${badgeText}</span>${commentList}${commentInputHtml}${addButtonHtml}`;
       if (['commander', 'admin'].includes(currentRole)) {
         row.innerHTML += `<div class="action-row"><button class="ghost-btn review-letter" data-index="${index}">검토중</button><button class="ghost-btn primary-btn complete-letter" data-index="${index}">처리완료</button></div>`;
       }
@@ -394,6 +405,35 @@ function renderLetterDetail() {
       state.letters[index].status = '처리완료';
       saveState();
       renderLetterDetail();
+    });
+  });
+
+  document.querySelectorAll('.add-letter-comment').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      state.letterCommentEditingIndex = index;
+      renderLetterDetail();
+    });
+  });
+
+  document.querySelectorAll('.save-letter-comment').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      const commentTextarea = document.getElementById(`letterComment-${index}`);
+      if (!commentTextarea) return;
+      const comment = commentTextarea.value.trim();
+      if (!comment) {
+        alert('댓글 내용을 입력해 주세요.');
+        return;
+      }
+      if (!Array.isArray(state.letters[index].comments)) {
+        state.letters[index].comments = [];
+      }
+      state.letters[index].comments.push(comment);
+      state.letterCommentEditingIndex = null;
+      saveState();
+      renderLetterDetail();
+      alert('댓글이 저장되었습니다.');
     });
   });
 }
