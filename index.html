@@ -58,7 +58,7 @@
     }
 
     main.active {
-      display: block;
+      display: block !important;
     }
 
     .hidden {
@@ -307,7 +307,6 @@
   </div>
 
   <script>
-    // LocalStorage 키 정의
     const STORAGE_KEYS = {
       USERS: 'app_users',
       SESSION: 'app_session',
@@ -318,7 +317,6 @@
       NOTICES: 'app_notices'
     };
 
-    // 오늘 날짜 구하기
     function getTodayString() {
       const today = new Date();
       const year = today.getFullYear();
@@ -327,7 +325,6 @@
       return `${year}-${month}-${day}`;
     }
 
-    // 기본 데이터 및 테스트 계정 초기화
     function initDefaultData() {
       let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
       
@@ -365,7 +362,7 @@
       { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
     ];
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function initApp() {
       const authScreen = document.getElementById('authScreen');
       const homeScreen = document.getElementById('homeScreen');
       const detailScreen = document.getElementById('detailScreen');
@@ -395,11 +392,13 @@
           if (s) {
             s.style.display = 'none';
             s.classList.remove('active');
+            s.classList.add('hidden');
           }
         });
 
         if (targetScreen) {
           targetScreen.style.display = 'block';
+          targetScreen.classList.remove('hidden');
           targetScreen.classList.add('active');
         }
       }
@@ -1021,7 +1020,13 @@
       }
 
       updateUI();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
 </html>
