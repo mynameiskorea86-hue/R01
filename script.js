@@ -25,7 +25,6 @@ function initDefaultData() {
   const defaultAdmin = {
     milNumber: 'admin',
     name: '최고관리자',
-    birthDate: '1990-01-01',
     unitCode: '5기갑 방공대',
     role: 'admin',
     password: 'admin1234'
@@ -34,7 +33,6 @@ function initDefaultData() {
   const defaultCommander = {
     milNumber: 'commander',
     name: '방공대장',
-    birthDate: '1985-01-01',
     unitCode: '5기갑 방공대',
     role: 'commander',
     password: 'commander1234'
@@ -90,7 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateUI() {
     if (currentUser) {
       let roleName = '용사';
-      if (currentUser.role === 'commander') roleName = '지휘관';
+      if (currentUser.role === 'officer') roleName = '간부';
+      if (currentUser.role === 'commander') roleName = '지휘자';
       if (currentUser.role === 'admin') roleName = '관리자';
 
       document.getElementById('userGreeting').textContent = `${currentUser.name} (${roleName})님 환영합니다`;
@@ -122,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const milNumber = document.getElementById('milNumber').value.trim();
     const name = document.getElementById('registerName').value.trim();
-    const birthDate = document.getElementById('birthDate').value;
     const unitCode = document.getElementById('unitCode').value.trim();
     const role = document.getElementById('roleSelect').value;
     const password = document.getElementById('registerPassword').value;
@@ -132,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const newUser = { milNumber, name, birthDate, unitCode, role, password };
+    const newUser = { milNumber, name, unitCode, role, password };
     users.push(newUser);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     alert('회원가입이 완료되었습니다.');
@@ -184,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 1. 📅 출타신청 (과거 날짜 선택 방지)
+  // 1. 📅 출타신청
   // ==========================================
   function openLeavePage() {
     document.getElementById('detailTitle').textContent = '방공대 출타신청';
@@ -215,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const startInput = document.getElementById('leaveStart');
     const endInput = document.getElementById('leaveEnd');
 
-    // 시작일 변경 시 종료일 최소날짜 동적 변경
     startInput.addEventListener('change', () => {
       endInput.min = startInput.value;
       if (endInput.value && endInput.value < startInput.value) {
@@ -405,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 3. ✂️ 이발소 신청 (과거 날짜 선택 방지 & 시간 삭제)
+  // 3. ✂️ 이발소 신청
   // ==========================================
   function openBarberPage() {
     document.getElementById('detailTitle').textContent = '이발소 예약 신청';
@@ -536,25 +533,123 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 6. 🗂️ 관리자 DB
+  // 6. 🗂️ 관리자 DB (신규 인원 추가 / 목록 관리)
   // ==========================================
   function openAdminPage() {
     document.getElementById('detailTitle').textContent = '관리자 DB';
     const detailContent = document.getElementById('detailContent');
 
     detailContent.innerHTML = `
-      <h3>전체 회원 목록 (${users.length}명)</h3>
-      <div style="max-height:300px; overflow-y:auto;">
-        ${users.map(u => `
-          <div style="border-bottom:1px solid #eee; padding:8px 0; font-size:12px;">
-            <strong>${u.name}</strong> (${u.milNumber}) - ${u.role === 'commander' ? '지휘관' : u.role === 'admin' ? '관리자' : '용사'}<br/>
-            <span style="color:#777;">소속: ${u.unitCode}</span>
+      <div style="background:#f9f9f9; padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid #e0e0e0;">
+        <h3 style="margin-top:0;">➕ 신규 인원 DB 입력</h3>
+        <form id="adminAddUserForm" style="display:flex; flex-direction:column; gap:8px;">
+          <label style="font-size:12px;">직책 선택
+            <select id="dbRole" style="width:100%; padding:6px;" required>
+              <option value="user">용사</option>
+              <option value="officer">간부</option>
+              <option value="commander">지휘자</option>
+              <option value="admin">관리자</option>
+            </select>
+          </label>
+          <label style="font-size:12px;">군번(아이디)
+            <input type="text" id="dbMilNumber" placeholder="예: 21-123456" style="width:100%; padding:6px; box-sizing:border-box;" required />
+          </label>
+          <label style="font-size:12px;">이름
+            <input type="text" id="dbName" placeholder="예: 홍길동" style="width:100%; padding:6px; box-sizing:border-box;" required />
+          </label>
+          <label style="font-size:12px;">부대 코드
+            <input type="text" id="dbUnitCode" placeholder="예: 5기갑 방공대" style="width:100%; padding:6px; box-sizing:border-box;" required />
+          </label>
+          
+          <!-- 용사 선택 시에만 노출되는 입대일/전역예정일 -->
+          <div id="soldierDatesGroup" style="display:flex; flex-direction:column; gap:8px;">
+            <label style="font-size:12px;">입대일
+              <input type="date" id="dbEnlistDate" style="width:100%; padding:6px; box-sizing:border-box;" />
+            </label>
+            <label style="font-size:12px;">전역예정일
+              <input type="date" id="dbDischargeDate" style="width:100%; padding:6px; box-sizing:border-box;" />
+            </label>
           </div>
-        `).join('')}
+
+          <label style="font-size:12px;">비밀번호
+            <input type="password" id="dbPassword" placeholder="초기 비밀번호" style="width:100%; padding:6px; box-sizing:border-box;" required />
+          </label>
+
+          <button type="submit" class="primary-btn" style="margin-top:5px;">DB 등록하기</button>
+        </form>
       </div>
+
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+      <h3>전체 등록 인원 목록 (<span id="userCount">${users.length}</span>명)</h3>
+      <div id="adminUserList" style="max-height:250px; overflow-y:auto;"></div>
     `;
 
+    const dbRoleSelect = document.getElementById('dbRole');
+    const soldierDatesGroup = document.getElementById('soldierDatesGroup');
+
+    // 직책 선택 변경 시 이벤트 (용사일 때만 날짜 입력 노출)
+    dbRoleSelect.addEventListener('change', () => {
+      if (dbRoleSelect.value === 'user') {
+        soldierDatesGroup.style.display = 'flex';
+      } else {
+        soldierDatesGroup.style.display = 'none';
+      }
+    });
+
+    // DB 인원 등록 제출
+    document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const role = dbRoleSelect.value;
+      const milNumber = document.getElementById('dbMilNumber').value.trim();
+      const name = document.getElementById('dbName').value.trim();
+      const unitCode = document.getElementById('dbUnitCode').value.trim();
+      const password = document.getElementById('dbPassword').value;
+
+      if (users.find(u => u.milNumber === milNumber)) {
+        alert('이미 등록된 군번입니다.');
+        return;
+      }
+
+      const newUser = { milNumber, name, unitCode, role, password };
+
+      // 용사인 경우 입대일/전역예정일 추가
+      if (role === 'user') {
+        newUser.enlistDate = document.getElementById('dbEnlistDate').value;
+        newUser.dischargeDate = document.getElementById('dbDischargeDate').value;
+      }
+
+      users.push(newUser);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.`);
+
+      document.getElementById('adminAddUserForm').reset();
+      soldierDatesGroup.style.display = 'flex'; // 초기값 리셋
+      renderAdminUserList();
+    });
+
+    renderAdminUserList();
     showScreen(detailScreen);
+  }
+
+  function renderAdminUserList() {
+    const listContainer = document.getElementById('adminUserList');
+    document.getElementById('userCount').textContent = users.length;
+
+    listContainer.innerHTML = users.map(u => {
+      let roleLabel = '용사';
+      if (u.role === 'officer') roleLabel = '간부';
+      if (u.role === 'commander') roleLabel = '지휘자';
+      if (u.role === 'admin') roleLabel = '관리자';
+
+      return `
+        <div style="border-bottom:1px solid #eee; padding:8px 0; font-size:12px;">
+          <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span><br/>
+          <span style="color:#666;">부대코드: ${u.unitCode}</span>
+          ${u.role === 'user' && u.enlistDate ? `<br/><span style="color:#888;">입대: ${u.enlistDate} / 전역예정: ${u.dischargeDate || '-'}</span>` : ''}
+        </div>
+      `;
+    }).join('');
   }
 
   // 초기 상태 로드
