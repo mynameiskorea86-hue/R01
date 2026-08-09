@@ -220,6 +220,17 @@
       background-color: #f8d7da;
     }
 
+    .status-cancelled {
+      color: #6c757d;
+      background-color: #e2e3e5;
+      text-decoration: line-through;
+    }
+
+    .cancelled-text {
+      text-decoration: line-through;
+      color: #adb5bd !important;
+    }
+
     .new-badge {
       background-color: #ff0000 !important;
       color: #ffffff !important;
@@ -450,6 +461,8 @@
         return `<span class="status-badge status-completed">${customCompletedText}</span>`;
       } else if (status === '재검토') {
         return `<span class="status-badge status-reexamine">재검토</span>`;
+      } else if (status === '취소됨') {
+        return `<span class="status-badge status-cancelled">취소됨</span>`;
       } else {
         return `<span class="status-badge status-reviewing">검토중</span>`;
       }
@@ -910,22 +923,53 @@
         } else {
           leaves.forEach(l => {
             const status = l.status || '검토중';
+            const isMyPost = currentUser.milNumber === l.milNumber;
+            const isCancelled = status === '취소됨';
+
+            let textStyle = isCancelled ? 'cancelled-text' : '';
+            let editSuffix = (l.updatedAt && !isCancelled) ? ` <span style="font-size:11px; color:#0056b3; font-weight:normal;">(수정됨)</span>` : '';
+            let cancelledSuffix = isCancelled ? ` <span style="font-size:11px; color:#dc3545; font-weight:bold;">(수정됨 - 취소됨)</span>` : '';
+
             html += `
-              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+              <div style="border:1px solid ${isCancelled ? '#f1f3f5' : '#ddd'}; padding:12px; border-radius:8px; margin-bottom:12px; background:${isCancelled ? '#f8f9fa' : '#fff'};">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong>[${l.type}] ${l.name} (${l.milNumber || '용사'})</strong>
+                  <strong class="${textStyle}">[${l.type}] ${l.name} (${l.milNumber || '용사'}) ${editSuffix} ${cancelledSuffix}</strong>
                   ${getStatusBadgeHTML(status, '검토완료')}
                 </div>
-                <p style="font-size:12px; color:#555; margin:6px 0;">기간: ${l.start} ~ ${l.end}<br/>사유: ${l.reason}</p>
-                ${isManager() ? `
-                  <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
-                    <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
-                    <button class="change-status-btn" data-post-id="${l.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">검토완료</button>
-                    <button class="change-status-btn" data-post-id="${l.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
-                    <button class="change-status-btn" data-post-id="${l.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                <p style="font-size:12px; color:${isCancelled ? '#adb5bd' : '#555'}; margin:6px 0;" class="${textStyle}">기간: ${l.start} ~ ${l.end}<br/>사유: ${l.reason}</p>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                  <div>
+                    ${isManager() ? `
+                      <div style="display:flex; gap:4px; align-items:center;">
+                        <span style="font-size:11px; font-weight:bold; color:#555;">상태:</span>
+                        <button class="change-status-btn" data-post-id="${l.id}" data-status="조치완료" style="padding:2px 5px; font-size:10px; background-color:#28a745; color:white;">검토완료</button>
+                        <button class="change-status-btn" data-post-id="${l.id}" data-status="재검토" style="padding:2px 5px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
+                        <button class="change-status-btn" data-post-id="${l.id}" data-status="검토중" style="padding:2px 5px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                      </div>
+                    ` : ''}
                   </div>
-                ` : ''}
-                ${renderCommentsSection(l.id, l.comments, isManager() || currentUser.milNumber === l.milNumber)}
+                  <div>
+                    ${isMyPost && !isCancelled ? `
+                      <button class="edit-leave-btn ghost-btn" data-post-id="${l.id}" style="padding:3px 8px; font-size:11px; width:auto; display:inline-block; margin-right:4px;">수정</button>
+                      <button class="cancel-leave-btn ghost-btn" data-post-id="${l.id}" style="padding:3px 8px; font-size:11px; width:auto; color:#dc3545; border-color:#dc3545; display:inline-block;">취소하기</button>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <div id="editLeaveBox-${l.id}" class="hidden" style="margin-top:10px; background:#fff; padding:10px; border-radius:6px; border:1px solid #ced4da;">
+                  <h4 style="font-size:12px; margin-bottom:6px; color:#0056b3;">출타 신청 수정</h4>
+                  <label style="font-size:11px;">유형 <select id="editLeaveType-${l.id}" style="padding:4px;"><option value="휴가" ${l.type==='휴가'?'selected':''}>휴가</option><option value="외박" ${l.type==='외박'?'selected':''}>외박</option><option value="외출" ${l.type==='외출'?'selected':''}>외출</option></select></label>
+                  <label style="font-size:11px;">시작일 <input type="date" id="editLeaveStart-${l.id}" value="${l.start}" style="padding:4px;" /></label>
+                  <label style="font-size:11px;">종료일 <input type="date" id="editLeaveEnd-${l.id}" value="${l.end}" style="padding:4px;" /></label>
+                  <label style="font-size:11px;">사유 <input type="text" id="editLeaveReason-${l.id}" value="${l.reason}" style="padding:4px;" /></label>
+                  <div style="display:flex; gap:4px; margin-top:8px;">
+                    <button class="submit-edit-leave-btn primary-btn" data-post-id="${l.id}" style="padding:6px; font-size:11px;">수정 완료</button>
+                    <button class="cancel-edit-leave-btn ghost-btn" data-post-id="${l.id}" style="padding:6px; font-size:11px;">닫기</button>
+                  </div>
+                </div>
+
+                ${renderCommentsSection(l.id, l.comments, isManager() || isMyPost)}
               </div>
             `;
           });
@@ -951,6 +995,56 @@
           localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
           alert('출타 신청이 완료되었습니다.');
           renderLeavePage();
+        });
+
+        document.querySelectorAll('.cancel-leave-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            if (confirm('정말 이 출타 신청을 취소하시겠습니까?')) {
+              let items = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
+              const post = items.find(i => i.id === postId);
+              if (post) {
+                post.status = '취소됨';
+                post.updatedAt = getTodayString();
+                localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(items));
+                renderLeavePage();
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('.edit-leave-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const box = document.getElementById(`editLeaveBox-${postId}`);
+            if (box) box.classList.toggle('hidden');
+          });
+        });
+
+        document.querySelectorAll('.cancel-edit-leave-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const box = document.getElementById(`editLeaveBox-${postId}`);
+            if (box) box.classList.add('hidden');
+          });
+        });
+
+        document.querySelectorAll('.submit-edit-leave-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            let items = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
+            const post = items.find(i => i.id === postId);
+            if (post) {
+              post.type = document.getElementById(`editLeaveType-${postId}`).value;
+              post.start = document.getElementById(`editLeaveStart-${postId}`).value;
+              post.end = document.getElementById(`editLeaveEnd-${postId}`).value;
+              post.reason = document.getElementById(`editLeaveReason-${postId}`).value;
+              post.updatedAt = getTodayString();
+              localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(items));
+              alert('출타 신청 내용이 수정되었습니다.');
+              renderLeavePage();
+            }
+          });
         });
 
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
@@ -1124,21 +1218,49 @@
         } else {
           barberBookings.forEach(b => {
             const status = b.status || '검토중';
+            const isMyPost = currentUser.milNumber === b.milNumber;
+            const isCancelled = status === '취소됨';
+
+            let textStyle = isCancelled ? 'cancelled-text' : '';
+            let editSuffix = (b.updatedAt && !isCancelled) ? ` <span style="font-size:11px; color:#0056b3; font-weight:normal;">(수정됨)</span>` : '';
+            let cancelledSuffix = isCancelled ? ` <span style="font-size:11px; color:#dc3545; font-weight:bold;">(수정됨 - 취소됨)</span>` : '';
+
             html += `
-              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+              <div style="border:1px solid ${isCancelled ? '#f1f3f5' : '#ddd'}; padding:12px; border-radius:8px; margin-bottom:12px; background:${isCancelled ? '#f8f9fa' : '#fff'};">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong>📅 ${b.date} - ${b.name} (${b.milNumber || '용사'})</strong>
+                  <strong class="${textStyle}">📅 ${b.date} - ${b.name} (${b.milNumber || '용사'}) ${editSuffix} ${cancelledSuffix}</strong>
                   ${getStatusBadgeHTML(status, '예약완료')}
                 </div>
-                ${isManager() ? `
-                  <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
-                    <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
-                    <button class="change-status-btn" data-post-id="${b.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">예약완료</button>
-                    <button class="change-status-btn" data-post-id="${b.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
-                    <button class="change-status-btn" data-post-id="${b.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                  <div>
+                    ${isManager() ? `
+                      <div style="display:flex; gap:4px; align-items:center;">
+                        <span style="font-size:11px; font-weight:bold; color:#555;">상태:</span>
+                        <button class="change-status-btn" data-post-id="${b.id}" data-status="조치완료" style="padding:2px 5px; font-size:10px; background-color:#28a745; color:white;">예약완료</button>
+                        <button class="change-status-btn" data-post-id="${b.id}" data-status="재검토" style="padding:2px 5px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
+                        <button class="change-status-btn" data-post-id="${b.id}" data-status="검토중" style="padding:2px 5px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                      </div>
+                    ` : ''}
                   </div>
-                ` : ''}
-                ${renderCommentsSection(b.id, b.comments, isManager() || currentUser.milNumber === b.milNumber)}
+                  <div>
+                    ${isMyPost && !isCancelled ? `
+                      <button class="edit-barber-btn ghost-btn" data-post-id="${b.id}" style="padding:3px 8px; font-size:11px; width:auto; display:inline-block; margin-right:4px;">수정</button>
+                      <button class="cancel-barber-btn ghost-btn" data-post-id="${b.id}" style="padding:3px 8px; font-size:11px; width:auto; color:#dc3545; border-color:#dc3545; display:inline-block;">취소하기</button>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <div id="editBarberBox-${b.id}" class="hidden" style="margin-top:10px; background:#fff; padding:10px; border-radius:6px; border:1px solid #ced4da;">
+                  <h4 style="font-size:12px; margin-bottom:6px; color:#0056b3;">이발소 예약 수정</h4>
+                  <label style="font-size:11px;">예약 희망일 <input type="date" id="editBarberDate-${b.id}" value="${b.date}" min="${today}" style="padding:4px;" /></label>
+                  <div style="display:flex; gap:4px; margin-top:8px;">
+                    <button class="submit-edit-barber-btn primary-btn" data-post-id="${b.id}" style="padding:6px; font-size:11px;">수정 완료</button>
+                    <button class="cancel-edit-barber-btn ghost-btn" data-post-id="${b.id}" style="padding:6px; font-size:11px;">닫기</button>
+                  </div>
+                </div>
+
+                ${renderCommentsSection(b.id, b.comments, isManager() || isMyPost)}
               </div>
             `;
           });
@@ -1160,6 +1282,53 @@
           localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
           alert('이발소 예약이 완료되었습니다.');
           renderBarberPage();
+        });
+
+        document.querySelectorAll('.cancel-barber-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            if (confirm('정말 이발소 예약을 취소하시겠습니까?')) {
+              let items = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
+              const post = items.find(i => i.id === postId);
+              if (post) {
+                post.status = '취소됨';
+                post.updatedAt = getTodayString();
+                localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(items));
+                renderBarberPage();
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('.edit-barber-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const box = document.getElementById(`editBarberBox-${postId}`);
+            if (box) box.classList.toggle('hidden');
+          });
+        });
+
+        document.querySelectorAll('.cancel-edit-barber-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const box = document.getElementById(`editBarberBox-${postId}`);
+            if (box) box.classList.add('hidden');
+          });
+        });
+
+        document.querySelectorAll('.submit-edit-barber-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            let items = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
+            const post = items.find(i => i.id === postId);
+            if (post) {
+              post.date = document.getElementById(`editBarberDate-${postId}`).value;
+              post.updatedAt = getTodayString();
+              localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(items));
+              alert('이발소 예약 내용이 수정되었습니다.');
+              renderBarberPage();
+            }
+          });
         });
 
         bindCommonEvents(STORAGE_KEYS.BARBER, renderBarberPage);
