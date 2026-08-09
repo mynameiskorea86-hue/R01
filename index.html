@@ -360,7 +360,6 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <!-- 오직 군번(아이디)이 'admin'인 최고 관리자에게만 노출 -->
       <button id="resetDataBtn" class="ghost-btn hidden" style="margin-top:10px; font-size:11px; color:#dc3545; border-color:#f8d7da; background-color:#f8d7da;">⚠️ 데이터 초기화 (최고 관리자 전용)</button>
     </footer>
   </div>
@@ -442,14 +441,13 @@
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
     }
 
-    // 최고 관리자 여부 판별 함수 (오직 아이디가 'admin'인 계정만 최고 관리자로 인정)
     function isSuperAdmin() {
       return currentUser && currentUser.milNumber === 'admin';
     }
 
-    function getStatusBadgeHTML(status) {
-      if (status === '조치완료') {
-        return `<span class="status-badge status-completed">조치완료</span>`;
+    function getStatusBadgeHTML(status, customCompletedText = '조치완료') {
+      if (status === '조치완료' || status === '검토완료' || status === '예약완료') {
+        return `<span class="status-badge status-completed">${customCompletedText}</span>`;
       } else if (status === '재검토') {
         return `<span class="status-badge status-reexamine">재검토</span>`;
       } else {
@@ -662,7 +660,6 @@
           
           if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-          // 🗂️ 관리자 DB 카드와 ⚠️ 데이터 초기화 버튼 제어 (오직 최고 관리자만 허용)
           const isSuper = isSuperAdmin();
           if (adminCard) {
             adminCard.classList.toggle('hidden', !isSuper);
@@ -748,7 +745,6 @@
         updateUI();
       });
 
-      // 데이터 초기화 버튼 클릭 방어 로직 추가 강화
       resetDataBtn?.addEventListener('click', () => {
         if (!isSuperAdmin()) {
           alert('최고 관리자만 데이터를 초기화할 수 있습니다.');
@@ -918,13 +914,13 @@
               <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <strong>[${l.type}] ${l.name} (${l.milNumber || '용사'})</strong>
-                  ${getStatusBadgeHTML(status)}
+                  ${getStatusBadgeHTML(status, '검토완료')}
                 </div>
                 <p style="font-size:12px; color:#555; margin:6px 0;">기간: ${l.start} ~ ${l.end}<br/>사유: ${l.reason}</p>
                 ${isManager() ? `
                   <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
                     <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
-                    <button class="change-status-btn" data-post-id="${l.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">조치완료</button>
+                    <button class="change-status-btn" data-post-id="${l.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">검토완료</button>
                     <button class="change-status-btn" data-post-id="${l.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
                     <button class="change-status-btn" data-post-id="${l.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
                   </div>
@@ -1026,7 +1022,7 @@
               <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
-                  <div>${getStatusBadgeHTML(status)}</div>
+                  <div>${getStatusBadgeHTML(status, '조치완료')}</div>
                 </div>
                 ${analysisHTML}
                 <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
@@ -1132,12 +1128,12 @@
               <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <strong>📅 ${b.date} - ${b.name} (${b.milNumber || '용사'})</strong>
-                  ${getStatusBadgeHTML(status)}
+                  ${getStatusBadgeHTML(status, '예약완료')}
                 </div>
                 ${isManager() ? `
                   <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
                     <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
-                    <button class="change-status-btn" data-post-id="${b.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">조치완료</button>
+                    <button class="change-status-btn" data-post-id="${b.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">예약완료</button>
                     <button class="change-status-btn" data-post-id="${b.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
                     <button class="change-status-btn" data-post-id="${b.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
                   </div>
@@ -1214,7 +1210,7 @@
                 ${isManager() ? categoryHTML : ''}
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <h4 style="margin:0;">${s.title}</h4>
-                  ${getStatusBadgeHTML(status)}
+                  ${getStatusBadgeHTML(status, '조치완료')}
                 </div>
                 <p style="font-size:12px; color:#666; margin:4px 0 8px 0;">작성자: ${s.authorName} | ${s.date}</p>
                 <p style="font-size:13px; color:#333;">${s.content}</p>
