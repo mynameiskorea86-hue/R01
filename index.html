@@ -10,7 +10,7 @@
     <title>부대 소통 활성화 앱</title>
     <script>
       (() => {
-        const APP_VERSION = '20260806-2';
+        const APP_VERSION = '20260806-3';
         window.APP_VERSION = APP_VERSION;
         const params = new URLSearchParams(window.location.search);
         const currentVersion = params.get('v');
@@ -22,7 +22,7 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260806-2" />
+    <link rel="stylesheet" href="styles.css?v=20260806-3" />
   </head>
   <body>
     <div class="page-background">
@@ -38,6 +38,7 @@
             <button id="logoutBtn" class="ghost-btn hidden">로그아웃</button>
           </header>
 
+          <!-- 로그인 화면 -->
           <section id="authScreen" class="screen active">
             <div class="card">
               <h2>로그인</h2>
@@ -92,6 +93,7 @@
             </div>
           </section>
 
+          <!-- 메인 화면 (독립적인 section으로 분리) -->
           <section id="homeScreen" class="screen">
             <div class="hero-panel">
               <div class="hero-top">
@@ -139,6 +141,7 @@
             </div>
           </section>
 
+          <!-- 상세 화면 -->
           <section id="detailScreen" class="screen">
             <div class="card">
               <div class="detail-header">
@@ -151,6 +154,6 @@
         </div>
       </div>
     </div>
-    <script src="script.js?v=20260806-2"></script>
+    <script src="script.js?v=20260806-3"></script>
   </body>
 </html>
