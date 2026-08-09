@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (roleSelect && registerSoldierDatesGroup) {
     roleSelect.addEventListener('change', () => {
-      // 용사(user) 선택 시에만 입대일/전역일 노출
+      // '용사(user)' 선택할 때만 입대일/전역예정일 표시
       if (roleSelect.value === 'user') {
         registerSoldierDatesGroup.style.display = 'flex';
       } else {
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const newUser = { milNumber, name, unitCode, role, password };
 
-    // 용사 선택 시에만 입대일/전역예정일 등록
+    // 용사 선택시에만 날짜 저장
     if (role === 'user') {
       const enlistDateInput = document.getElementById('registerEnlistDate');
       const dischargeDateInput = document.getElementById('registerDischargeDate');
@@ -162,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
     registerCard.classList.add('hidden');
     registerForm.reset();
 
-    // 초기 상태 복원
     if (registerSoldierDatesGroup) registerSoldierDatesGroup.style.display = 'flex';
   });
 
@@ -209,9 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ==========================================
-  // 1. 📅 출타신청
-  // ==========================================
+  // 1. 出타신청
   function openLeavePage() {
     document.getElementById('detailTitle').textContent = '방공대 출타신청';
     const detailContent = document.getElementById('detailContent');
@@ -287,9 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  // ==========================================
-  // 2. 💬 대장과의 대화 (마음의 편지)
-  // ==========================================
+  // 2. 대장과의 대화
   function openLetterBoard() {
     document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
     renderLetterList();
@@ -429,9 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ==========================================
-  // 3. ✂️ 이발소 신청
-  // ==========================================
+  // 3. 이발소
   function openBarberPage() {
     document.getElementById('detailTitle').textContent = '이발소 예약 신청';
     const detailContent = document.getElementById('detailContent');
@@ -483,9 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  // ==========================================
-  // 4. 📝 건의사항
-  // ==========================================
+  // 4. 건의사항
   function openSuggestionPage() {
     document.getElementById('detailTitle').textContent = '건의사항';
     const detailContent = document.getElementById('detailContent');
@@ -538,9 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  // ==========================================
-  // 5. 📢 공지사항
-  // ==========================================
+  // 5. 공지사항
   function openNoticePage() {
     document.getElementById('detailTitle').textContent = '공지사항';
     const detailContent = document.getElementById('detailContent');
@@ -560,11 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen(detailScreen);
   }
 
-  // ==========================================
-  // 6. 🗂️ 관리자 DB 제어 (관리자 전용 CRUD)
-  // ==========================================
+  // 6. 관리자 DB
   function openAdminPage() {
-    // 🔒 관리자(admin) 권한 확인
     if (!currentUser || currentUser.role !== 'admin') {
       alert('관리자만 접근 가능한 페이지입니다.');
       showScreen(homeScreen);
@@ -596,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <input type="text" id="dbUnitCode" placeholder="예: 5기갑 방공대" style="width:100%; padding:6px; box-sizing:border-box;" required />
           </label>
           
-          <!-- 용사 선택 시에만 입력할 수 있는 날짜 항목 -->
           <div id="soldierDatesGroup" style="display:flex; flex-direction:column; gap:8px;">
             <label style="font-size:12px;">입대일
               <input type="date" id="dbEnlistDate" style="width:100%; padding:6px; box-sizing:border-box;" />
@@ -622,7 +607,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbRoleSelect = document.getElementById('dbRole');
     const soldierDatesGroup = document.getElementById('soldierDatesGroup');
 
-    // 직책 선택에 따른 입대일/전역일 처리
     dbRoleSelect.addEventListener('change', () => {
       if (dbRoleSelect.value === 'user') {
         soldierDatesGroup.style.display = 'flex';
@@ -665,7 +649,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen(detailScreen);
   }
 
-  // 관리자 DB 목록 표시 (수정/삭제 제공)
   function renderAdminUserList() {
     const listContainer = document.getElementById('adminUserList');
     document.getElementById('userCount').textContent = users.length;
@@ -691,7 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    // 수정 처리
     document.querySelectorAll('.edit-user-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const milNumber = e.target.dataset.mil;
@@ -699,7 +681,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // 삭제 처리
     document.querySelectorAll('.delete-user-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const milNumber = e.target.dataset.mil;
@@ -708,7 +689,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // DB 사용자 수정
   function editUserDB(milNumber) {
     const targetUser = users.find(u => u.milNumber === milNumber);
     if (!targetUser) return;
@@ -739,7 +719,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAdminUserList();
   }
 
-  // DB 사용자 삭제
   function deleteUserDB(milNumber) {
     if (confirm(`군번 [${milNumber}] 인원을 정말 삭제하시겠습니까?`)) {
       users = users.filter(u => u.milNumber !== milNumber);
@@ -749,6 +728,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 초기 실행
   updateUI();
 });
