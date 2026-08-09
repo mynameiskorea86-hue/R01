@@ -9,6 +9,15 @@ const STORAGE_KEYS = {
   NOTICES: 'app_notices'
 };
 
+// 오늘 날짜 구하기 (YYYY-MM-DD 형식)
+function getTodayString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // 기본 데이터 및 테스트 계정 초기화
 function initDefaultData() {
   let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
@@ -62,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const backToHomeBtn = document.getElementById('backToHomeBtn');
   const adminCard = document.getElementById('adminCard');
 
-  // 화면 전환 제어 (겹침 방지 style.display 제어)
+  // 화면 전환 제어
   function showScreen(targetScreen) {
     [authScreen, homeScreen, detailScreen].forEach(s => {
       if (s) {
@@ -175,11 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 1. 📅 출타신청
+  // 1. 📅 출타신청 (과거 날짜 선택 방지)
   // ==========================================
   function openLeavePage() {
     document.getElementById('detailTitle').textContent = '방공대 출타신청';
     const detailContent = document.getElementById('detailContent');
+    const today = getTodayString();
 
     detailContent.innerHTML = `
       <form id="leaveForm" style="display:flex; flex-direction:column; gap:10px;">
@@ -190,8 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <option value="외출">외출</option>
           </select>
         </label>
-        <label>시작일 <input type="date" id="leaveStart" style="width:100%; padding:8px;" required /></label>
-        <label>종료일 <input type="date" id="leaveEnd" style="width:100%; padding:8px;" required /></label>
+        <label>시작일 <input type="date" id="leaveStart" min="${today}" style="width:100%; padding:8px;" required /></label>
+        <label>종료일 <input type="date" id="leaveEnd" min="${today}" style="width:100%; padding:8px;" required /></label>
         <label>사유 <input type="text" id="leaveReason" placeholder="출타 사유 입력" style="width:100%; padding:8px;" required /></label>
         <button type="submit" class="primary-btn">신청하기</button>
       </form>
@@ -202,6 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderLeaveList();
 
+    const startInput = document.getElementById('leaveStart');
+    const endInput = document.getElementById('leaveEnd');
+
+    // 시작일 변경 시 종료일 최소날짜 동적 변경
+    startInput.addEventListener('change', () => {
+      endInput.min = startInput.value;
+      if (endInput.value && endInput.value < startInput.value) {
+        endInput.value = startInput.value;
+      }
+    });
+
     document.getElementById('leaveForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const newLeave = {
@@ -209,8 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
         milNumber: currentUser.milNumber,
         name: currentUser.name,
         type: document.getElementById('leaveType').value,
-        start: document.getElementById('leaveStart').value,
-        end: document.getElementById('leaveEnd').value,
+        start: startInput.value,
+        end: endInput.value,
         reason: document.getElementById('leaveReason').value,
         status: '대기중'
       };
@@ -269,11 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
-        // 열람 권한: 본인 또는 지휘관(commander)만 가능 (관리자 admin 및 타 유저 제외)
         const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
-
-        // 아이디 익명화
         const authorDisplay = isMyPost ? '본인' : '익명 (***)';
 
         html += `
@@ -345,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayString();
     const newLetter = {
       id: Date.now(),
       title,
@@ -372,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const post = letters.find(l => l.id === postId);
     if (post) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
       post.comments.push({
         id: Date.now(),
         author: currentUser.name,
@@ -387,24 +405,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 3. ✂️ 이발소 신청
+  // 3. ✂️ 이발소 신청 (과거 날짜 선택 방지 & 시간 삭제)
   // ==========================================
   function openBarberPage() {
     document.getElementById('detailTitle').textContent = '이발소 예약 신청';
     const detailContent = document.getElementById('detailContent');
+    const today = getTodayString();
 
     detailContent.innerHTML = `
       <form id="barberForm" style="display:flex; flex-direction:column; gap:10px;">
-        <label>예약 희망일 <input type="date" id="barberDate" style="width:100%; padding:8px;" required /></label>
-        <label>희망 시간
-          <select id="barberTime" style="width:100%; padding:8px;" required>
-            <option value="17:30">17:30</option>
-            <option value="18:00">18:00</option>
-            <option value="18:30">18:30</option>
-            <option value="19:00">19:00</option>
-            <option value="19:30">19:30</option>
-          </select>
-        </label>
+        <label>예약 희망일 <input type="date" id="barberDate" min="${today}" style="width:100%; padding:8px;" required /></label>
         <button type="submit" class="primary-btn">예약하기</button>
       </form>
       <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
@@ -420,8 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         id: Date.now(),
         milNumber: currentUser.milNumber,
         name: currentUser.name,
-        date: document.getElementById('barberDate').value,
-        time: document.getElementById('barberTime').value
+        date: document.getElementById('barberDate').value
       };
 
       barberBookings.unshift(newBooking);
@@ -444,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     list.innerHTML = myBookings.map(b => `
       <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-        📅 <strong>${b.date}</strong> (${b.time}) - 예약완료
+        📅 <strong>${b.date}</strong> - 예약완료
       </div>
     `).join('');
   }
@@ -476,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         title: document.getElementById('suggestionTitle').value.trim(),
         content: document.getElementById('suggestionContent').value.trim(),
         authorName: currentUser.name,
-        date: new Date().toISOString().split('T')[0]
+        date: getTodayString()
       };
 
       suggestions.unshift(newSugg);
