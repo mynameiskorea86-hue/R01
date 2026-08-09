@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>5기갑 방공대 커뮤니티</title>
   <style>
-    /* 기본 스타일 및 리셋 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -33,7 +32,6 @@
       flex-direction: column;
     }
 
-    /* 헤더 */
     header {
       text-align: center;
       margin-bottom: 24px;
@@ -52,7 +50,6 @@
       margin-top: 4px;
     }
 
-    /* 화면 숨김 및 활성화 제어 */
     main {
       display: none;
     }
@@ -65,7 +62,6 @@
       display: none !important;
     }
 
-    /* 카드 및 폼 스타일 */
     .card {
       background-color: #f8f9fa;
       border-radius: 12px;
@@ -107,7 +103,6 @@
       border-color: #0056b3;
     }
 
-    /* 버튼 스타일 */
     button {
       cursor: pointer;
       border: none;
@@ -144,7 +139,6 @@
       background-color: #e9ecef;
     }
 
-    /* 메인 홈 메뉴 스타일 */
     .user-profile-card {
       background-color: #eef5ff;
       border-radius: 12px;
@@ -185,7 +179,6 @@
       background-color: #e2e6ea;
     }
 
-    /* 상세 헤더 */
     .detail-header {
       display: flex;
       align-items: center;
@@ -203,7 +196,6 @@
       font-size: 18px;
     }
 
-    /* 하단 푸터 */
     footer {
       margin-top: auto;
       padding-top: 16px;
@@ -219,12 +211,11 @@
 
     <!-- 로그인 및 회원가입 화면 -->
     <main id="authScreen" class="active">
-      <!-- 로그인 카드 -->
       <div class="card">
         <h3>로그인</h3>
         <form id="loginForm">
           <label>군번(아이디)</label>
-          <input type="text" id="loginMilNumber" placeholder="예: 21-123456" required>
+          <input type="text" id="loginMilNumber" placeholder="예: 21-123456 또는 admin" required>
           
           <label>비밀번호</label>
           <input type="password" id="loginPassword" placeholder="비밀번호 입력" required>
@@ -234,7 +225,6 @@
         <button id="showRegisterBtn" class="ghost-btn" style="margin-top: 10px;">회원가입</button>
       </div>
 
-      <!-- 회원가입 카드 -->
       <div id="registerCard" class="card hidden" style="margin-top: 15px;">
         <h3>회원가입</h3>
         <form id="registerForm">
@@ -255,7 +245,6 @@
             <option value="admin">관리자</option>
           </select>
 
-          <!-- 용사 선택 시에만 노출되는 입대일/전역예정일 그룹 -->
           <div id="registerSoldierDatesGroup" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
             <label>입대일</label>
             <input type="date" id="registerEnlistDate">
@@ -264,7 +253,7 @@
             <input type="date" id="registerDischargeDate">
           </div>
 
-          <label style="margin-top: 8px;">비밀번호</label>
+          <label style="margin-top: 8px;">스스로 사용할 비밀번호 설정</label>
           <input type="password" id="registerPassword" placeholder="비밀번호 입력" required>
 
           <button type="submit" class="primary-btn" style="margin-top: 15px;">가입하기</button>
@@ -295,12 +284,9 @@
         <button id="backToHomeBtn" class="ghost-btn">← 뒤로가기</button>
         <h2 id="detailTitle">상세 페이지</h2>
       </div>
-      <div id="detailContent" class="card">
-        <!-- JS 동적 콘텐츠 출력 -->
-      </div>
+      <div id="detailContent" class="card"></div>
     </main>
 
-    <!-- 하단 로그아웃 버튼 -->
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
     </footer>
@@ -325,27 +311,20 @@
       return `${year}-${month}-${day}`;
     }
 
+    // 기본 관리자(admin) 계정 초기화
     function initDefaultData() {
       let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
       
-      const defaultAdmin = {
-        milNumber: 'admin',
-        name: '최고관리자',
-        unitCode: '5기갑 방공대',
-        role: 'admin',
-        password: 'admin1234'
-      };
-
-      const defaultCommander = {
-        milNumber: 'commander',
-        name: '방공대장',
-        unitCode: '5기갑 방공대',
-        role: 'commander',
-        password: 'commander1234'
-      };
-
-      if (!savedUsers.some(u => u.milNumber === 'admin')) savedUsers.push(defaultAdmin);
-      if (!savedUsers.some(u => u.milNumber === 'commander')) savedUsers.push(defaultCommander);
+      const hasAdmin = savedUsers.some(u => u.milNumber === 'admin');
+      if (!hasAdmin) {
+        savedUsers.push({
+          milNumber: 'admin',
+          password: 'admin1234',
+          name: '최고관리자',
+          role: 'admin',
+          unitCode: '본부'
+        });
+      }
 
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(savedUsers));
       return savedUsers;
@@ -442,24 +421,35 @@
         const role = document.getElementById('roleSelect').value;
         const password = document.getElementById('registerPassword').value;
 
-        if (users.find(u => u.milNumber === milNumber)) {
-          alert('이미 가입된 군번/아이디입니다.');
-          return;
+        users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+        const existingUserIndex = users.findIndex(u => u.milNumber === milNumber);
+
+        if (existingUserIndex !== -1) {
+          if (users[existingUserIndex].password) {
+            alert('이미 회원가입이 완료된 계정입니다.');
+            return;
+          } else {
+            users[existingUserIndex].name = name;
+            users[existingUserIndex].unitCode = unitCode;
+            users[existingUserIndex].role = role;
+            users[existingUserIndex].password = password;
+
+            if (role === 'user') {
+              users[existingUserIndex].enlistDate = document.getElementById('registerEnlistDate').value;
+              users[existingUserIndex].dischargeDate = document.getElementById('registerDischargeDate').value;
+            }
+          }
+        } else {
+          const newUser = { milNumber, name, unitCode, role, password };
+          if (role === 'user') {
+            newUser.enlistDate = document.getElementById('registerEnlistDate').value;
+            newUser.dischargeDate = document.getElementById('registerDischargeDate').value;
+          }
+          users.push(newUser);
         }
 
-        const newUser = { milNumber, name, unitCode, role, password };
-
-        if (role === 'user') {
-          const enlistDateInput = document.getElementById('registerEnlistDate');
-          const dischargeDateInput = document.getElementById('registerDischargeDate');
-          
-          if (enlistDateInput) newUser.enlistDate = enlistDateInput.value;
-          if (dischargeDateInput) newUser.dischargeDate = dischargeDateInput.value;
-        }
-
-        users.push(newUser);
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-        alert('회원가입이 완료되었습니다.');
+        alert('회원가입이 완료되었습니다! 설정하신 비밀번호로 로그인해 주세요.');
         registerCard.classList.add('hidden');
         registerForm.reset();
 
@@ -472,14 +462,14 @@
         const password = document.getElementById('loginPassword').value;
 
         users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-        const user = users.find(u => u.milNumber === milNumber && u.password === password);
+        const user = users.find(u => u.milNumber === milNumber && u.password === password && u.password !== '');
         
         if (user) {
           currentUser = user;
           localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
           updateUI();
         } else {
-          alert('군번(아이디) 또는 비밀번호가 올바르지 않습니다.');
+          alert('군번(아이디) 또는 비밀번호가 올바르지 않거나, 회원가입이 완료되지 않은 계정입니다.');
         }
       });
 
@@ -882,10 +872,6 @@
                 </label>
               </div>
 
-              <label style="font-size:12px;">비밀번호
-                <input type="password" id="dbPassword" placeholder="초기 비밀번호" style="width:100%; padding:6px; box-sizing:border-box;" required />
-              </label>
-
               <button type="submit" class="primary-btn" style="margin-top:5px;">DB 등록하기</button>
             </form>
           </div>
@@ -913,14 +899,13 @@
           const milNumber = document.getElementById('dbMilNumber').value.trim();
           const name = document.getElementById('dbName').value.trim();
           const unitCode = document.getElementById('dbUnitCode').value.trim();
-          const password = document.getElementById('dbPassword').value;
 
           if (users.find(u => u.milNumber === milNumber)) {
             alert('이미 등록된 군번입니다.');
             return;
           }
 
-          const newUser = { milNumber, name, unitCode, role, password };
+          const newUser = { milNumber, name, unitCode, role, password: '' };
 
           if (role === 'user') {
             newUser.enlistDate = document.getElementById('dbEnlistDate').value;
@@ -929,7 +914,7 @@
 
           users.push(newUser);
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-          alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.`);
+          alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.\n(해당 사용자가 직접 회원가입을 거쳐 비밀번호를 설정할 수 있습니다.)`);
 
           document.getElementById('adminAddUserForm').reset();
           soldierDatesGroup.style.display = 'flex';
@@ -950,16 +935,18 @@
           if (u.role === 'commander') roleLabel = '지휘자';
           if (u.role === 'admin') roleLabel = '관리자';
 
+          const statusBadge = u.password ? '<span style="color:green; font-weight:bold;">[가입완료]</span>' : '<span style="color:orange; font-weight:bold;">[미가입/DB만등록]</span>';
+
           return `
             <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span><br/>
+                <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span> ${statusBadge}<br/>
                 <span style="color:#666;">부대코드: ${u.unitCode}</span>
                 ${u.role === 'user' && u.enlistDate ? `<br/><span style="color:#888;">입대: ${u.enlistDate} / 전역: ${u.dischargeDate || '-'}</span>` : ''}
               </div>
               <div style="display:flex; gap:4px;">
                 <button class="edit-user-btn ghost-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px;">수정</button>
-                ${u.milNumber !== 'admin' ? `<button class="delete-user-btn primary-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px; background-color:#dc3545;">삭제</button>` : ''}
+                <button class="delete-user-btn primary-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px; background-color:#dc3545;">삭제</button>
               </div>
             </div>
           `;
@@ -990,12 +977,8 @@
         const newUnitCode = prompt('수정할 부대 코드를 입력하세요:', targetUser.unitCode);
         if (newUnitCode === null) return;
 
-        const newPassword = prompt('수정할 비밀번호를 입력하세요:', targetUser.password);
-        if (newPassword === null) return;
-
         targetUser.name = newName.trim() || targetUser.name;
         targetUser.unitCode = newUnitCode.trim() || targetUser.unitCode;
-        targetUser.password = newPassword || targetUser.password;
 
         if (targetUser.role === 'user') {
           const newEnlist = prompt('수정할 입대일을 입력하세요 (YYYY-MM-DD):', targetUser.enlistDate || '');
