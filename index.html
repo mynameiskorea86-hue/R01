@@ -235,7 +235,7 @@
       line-height: 1.2 !important;
     }
 
-    /* 분석 태그 스타일 */
+    /* 마음의 편지 분석 태그 스타일 */
     .analysis-badge {
       font-weight: bold;
       font-size: 11px;
@@ -254,6 +254,28 @@
     }
     .analysis-etc {
       background-color: #17a2b8;
+      color: #ffffff;
+    }
+
+    /* 건의사항 카테고리 태그 스타일 */
+    .sug-category-badge {
+      font-weight: bold;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .sug-equipment {
+      background-color: #17a2b8;
+      color: #ffffff;
+    }
+    .sug-facility {
+      background-color: #fd7e14;
+      color: #ffffff;
+    }
+    .sug-etc {
+      background-color: #6c757d;
       color: #ffffff;
     }
 
@@ -363,7 +385,8 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <button id="resetDataBtn" class="ghost-btn" style="margin-top:10px; font-size:11px; color:#888; border-color:#eee;">⚠️ 데이터 초기화</button>
+      <!-- 최고 관리자(admin)에게만 표시되는 초기화 버튼 -->
+      <button id="resetDataBtn" class="ghost-btn hidden" style="margin-top:10px; font-size:11px; color:#dc3545; border-color:#f8d7da; background-color:#f8d7da;">⚠️ 데이터 초기화 (최고 관리자 전용)</button>
     </footer>
   </div>
 
@@ -454,6 +477,7 @@
       }
     }
 
+    /* 마음의 편지 분석 알고리즘 */
     function analyzeLetterContent(text) {
       if (!text) return null;
 
@@ -501,6 +525,49 @@
       }
 
       return tags.length > 0 ? tags : null;
+    }
+
+    /* 건의사항 키워드 자동 분류 알고리즘 */
+    function classifySuggestionContent(text) {
+      if (!text) return { category: 'etc', label: '💡 기타', keywords: [] };
+
+      const normalizedText = text.replace(/\s+/g, '');
+
+      // 1. 기자재 키워드
+      const equipmentKeywords = [
+        '사주세요', '구매', '사주', '교체', '구입', '사다', '비품', '물품', 
+        '장비', '기자재', '용품', '사주십쇼', '신청'
+      ];
+
+      // 2. 시설/난방 키워드
+      const facilityKeywords = [
+        '고쳐주세요', '고장', '난방', '에어컨', '히터', '수리', '보수', '파손', 
+        '누수', '샤워기', '변기', '세면대', '문고리', '창문', '전등', '환풍기', 
+        '냉방', '보일러', '따뜻', '춥', '더워', '더움'
+      ];
+
+      let detectedEquipment = [];
+      let detectedFacility = [];
+
+      equipmentKeywords.forEach(k => {
+        if (text.includes(k) || normalizedText.includes(k)) detectedEquipment.push(k);
+      });
+
+      facilityKeywords.forEach(k => {
+        if (text.includes(k) || normalizedText.includes(k)) detectedFacility.push(k);
+      });
+
+      detectedEquipment = [...new Set(detectedEquipment)];
+      detectedFacility = [...new Set(detectedFacility)];
+
+      // 기자재 우선 분류, 그 다음 시설/난방
+      if (detectedEquipment.length > 0) {
+        return { category: 'equipment', label: '🛒 기자재', keywords: detectedEquipment };
+      } else if (detectedFacility.length > 0) {
+        return { category: 'facility', label: '🛠️ 시설·난방', keywords: detectedFacility };
+      } else {
+        return { category: 'etc', label: '💡 기타', keywords: [] };
+      }
     }
 
     function getReadCommentIds() {
@@ -584,7 +651,7 @@
 
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:6px 12px; font-size:12px; width:auto; color:#0056b3; border-color:#0056b3; font-weight:bold;">
+          <button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:6px 12px; font-size:12px; width:auto; color:#0056b3; font-weight:bold;">
             💬 댓글 ${count}개 보기/작성 ${badgeHTML}
           </button>
         </div>
@@ -634,6 +701,7 @@
       const registerCard = document.getElementById('registerCard');
       const showRegisterBtn = document.getElementById('showRegisterBtn');
       const logoutBtn = document.getElementById('logoutBtn');
+      const resetDataBtn = document.getElementById('resetDataBtn');
       const backToHomeBtn = document.getElementById('backToHomeBtn');
       const adminCard = document.getElementById('adminCard');
 
@@ -674,14 +742,20 @@
           
           if (logoutBtn) logoutBtn.classList.remove('hidden');
 
+          /* 오직 최고 관리자(admin) 계정에게만 표시되는 제어 */
+          const isAdmin = currentUser.role === 'admin';
           if (adminCard) {
-            adminCard.classList.toggle('hidden', currentUser.role !== 'admin');
+            adminCard.classList.toggle('hidden', !isAdmin);
+          }
+          if (resetDataBtn) {
+            resetDataBtn.classList.toggle('hidden', !isAdmin);
           }
 
           updateMenuBadges();
           showScreen(homeScreen);
         } else {
           if (logoutBtn) logoutBtn.classList.add('hidden');
+          if (resetDataBtn) resetDataBtn.classList.add('hidden');
           showScreen(authScreen);
         }
       }
@@ -754,7 +828,12 @@
         updateUI();
       });
 
-      document.getElementById('resetDataBtn')?.addEventListener('click', () => {
+      resetDataBtn?.addEventListener('click', () => {
+        if (!currentUser || currentUser.role !== 'admin') {
+          alert('최고 관리자만 데이터를 초기화할 수 있습니다.');
+          return;
+        }
+
         if (confirm('모든 게시글 및 댓글 데이터가 초기화됩니다. 계속하시겠습니까?')) {
           localStorage.clear();
           alert('초기화되었습니다. 페이지를 새로고침합니다.');
@@ -1094,7 +1173,6 @@
           });
         }
 
-        // 클릭 시 2줄 제한 해제(전체 내용 접기/펼치기) 이벤트 처리
         document.querySelectorAll('.letter-content-box').forEach(box => {
           box.addEventListener('click', (e) => {
             const postId = box.dataset.postId;
@@ -1185,7 +1263,7 @@
         bindCommonEvents(STORAGE_KEYS.BARBER, renderBarberPage);
       }
 
-      /* 4. 건의사항 */
+      /* 4. 건의사항 (카테고리 자동 분류 적용) */
       function openSuggestionPage() {
         document.getElementById('detailTitle').textContent = '건의사항';
         renderSuggestionPage();
@@ -1199,7 +1277,7 @@
         let html = `
           <form id="suggestionForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
             <input type="text" id="suggestionTitle" placeholder="제목" style="padding:8px;" required />
-            <textarea id="suggestionContent" placeholder="건의할 내용을 입력해 주세요" style="height:80px; padding:8px;" required></textarea>
+            <textarea id="suggestionContent" placeholder="건의할 내용을 입력해 주세요 (예: 보일러 고장, 축구공 사주세요 등)" style="height:80px; padding:8px;" required></textarea>
             <button type="submit" class="primary-btn">건의하기</button>
           </form>
           <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
@@ -1212,8 +1290,24 @@
         } else {
           suggestions.forEach(s => {
             const status = s.status || '검토중';
+            const fullText = (s.title || '') + ' ' + (s.content || '');
+            const classification = classifySuggestionContent(fullText);
+
+            let categoryBadgeClass = 'sug-etc';
+            if (classification.category === 'equipment') categoryBadgeClass = 'sug-equipment';
+            if (classification.category === 'facility') categoryBadgeClass = 'sug-facility';
+
+            let categoryHTML = `<div style="margin-bottom:6px;">
+              <span class="sug-category-badge ${categoryBadgeClass}">${classification.label}</span>`;
+            
+            if (isManager() && classification.keywords.length > 0) {
+              categoryHTML += `<span style="font-size:10px; color:#666; margin-left:4px;">(키워드: ${classification.keywords.join(', ')})</span>`;
+            }
+            categoryHTML += `</div>`;
+
             html += `
               <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+                ${isManager() ? categoryHTML : ''}
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <h4 style="margin:0;">${s.title}</h4>
                   ${getStatusBadgeHTML(status)}
