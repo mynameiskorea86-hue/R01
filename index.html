@@ -444,14 +444,12 @@
       }
     }
 
-    // --- 🔍 키워드 기반 심리 분석 알고리즘 (지휘관 전용 - 고도화 완료) ---
+    // --- 🔍 키워드 기반 심리 분석 알고리즘 (지휘관 전용) ---
     function analyzeLetterContent(text) {
       if (!text) return null;
 
-      // 1. 띄어쓰기 무시 정규화 (공백 제거)
       const normalizedText = text.replace(/\s+/g, '');
 
-      // 2. 촘촘한 키워드 사전
       const anxietyKeywords = [
         '죽고싶', '죽고', '자살', '우울', '불면', '불안', '숨막', '숨이막', 
         '괴롭', '정신적', '답답', '살기싫', '포기', '버티기', '공황', '잠이안', '잠도안', '잠을못', '힘들'
@@ -478,7 +476,6 @@
         if (text.includes(k) || normalizedText.includes(k)) detectedEtc.push(k); 
       });
 
-      // 중복 키워드 제거
       detectedAnxiety = [...new Set(detectedAnxiety)];
       detectedCheck = [...new Set(detectedCheck)];
       detectedEtc = [...new Set(detectedEtc)];
@@ -966,30 +963,45 @@
       function renderLetterList() {
         letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [], STORAGE_KEYS.LETTERS);
         const detailContent = document.getElementById('detailContent');
+        const isCommander = currentUser.role === 'commander';
 
-        let html = `
-          <div style="margin-bottom: 20px;">
-            <button id="writeLetterBtn" class="primary-btn" style="width:100%; margin-bottom:15px;">✍️ 마음의 편지 작성하기</button>
-            <div id="letterWriteForm" class="hidden" style="background:#f5f5f5; padding:15px; border-radius:8px; margin-bottom:15px;">
-              <input type="text" id="letterTitle" placeholder="제목을 입력하세요" style="width:100%; padding:8px; margin-bottom:10px; box-sizing:border-box;" required />
-              <textarea id="letterText" placeholder="내용을 입력하세요..." style="width:100%; height:100px; padding:8px; margin-bottom:10px; box-sizing:border-box;" required></textarea>
-              <button id="submitLetterBtn" class="primary-btn" style="width:100%;">등록</button>
+        let html = '';
+
+        // 지휘관이 아닐 때만 '마음의 편지 작성하기' 버튼 및 폼 출력
+        if (!isCommander) {
+          html += `
+            <div style="margin-bottom: 20px;">
+              <button id="writeLetterBtn" class="primary-btn" style="width:100%; margin-bottom:15px;">✍️ 마음의 편지 작성하기</button>
+              <div id="letterWriteForm" class="hidden" style="background:#f5f5f5; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <input type="text" id="letterTitle" placeholder="제목을 입력하세요" style="width:100%; padding:8px; margin-bottom:10px; box-sizing:border-box;" required />
+                <textarea id="letterText" placeholder="내용을 입력하세요..." style="width:100%; height:100px; padding:8px; margin-bottom:10px; box-sizing:border-box;" required></textarea>
+                <button id="submitLetterBtn" class="primary-btn" style="width:100%;">등록</button>
+              </div>
             </div>
-          </div>
-          <div class="letter-list">
-        `;
+          `;
+        }
+
+        html += `<div class="letter-list">`;
 
         if (letters.length === 0) {
           html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
         } else {
           letters.forEach((post) => {
             const isMyPost = currentUser.milNumber === post.authorMilNumber;
-            const isCommander = currentUser.role === 'commander';
             const canAccess = isMyPost || isCommander; 
-            const authorDisplay = isMyPost ? '본인' : '익명 (***)';
             const status = post.status || '검토중';
 
-            // 🧠 [지휘관 전용] 본문 및 제목 심리 분석 수행
+            // 작성자 표시 구분 (지휘관일 경우 실명 및 군번 명확히 표기)
+            let authorDisplay = '익명 (***)';
+            if (isCommander) {
+              const name = post.authorName || '용사';
+              const mil = post.authorMilNumber ? ` (${post.authorMilNumber})` : '';
+              authorDisplay = `🔍 ${name}${mil}`;
+            } else if (isMyPost) {
+              authorDisplay = '본인';
+            }
+
+            // 지휘관 전용 심리 분석 수행
             let analysisHTML = '';
             if (isCommander) {
               const fullText = (post.title || '') + ' ' + (post.content || '');
@@ -1047,28 +1059,30 @@
         html += `</div>`;
         detailContent.innerHTML = html;
 
-        document.getElementById('writeLetterBtn')?.addEventListener('click', () => {
-          document.getElementById('letterWriteForm').classList.toggle('hidden');
-        });
-
-        document.getElementById('submitLetterBtn')?.addEventListener('click', () => {
-          const title = document.getElementById('letterTitle').value.trim();
-          const content = document.getElementById('letterText').value.trim();
-          if (!title || !content) return alert('제목과 내용을 입력해주세요.');
-
-          letters.unshift({
-            id: Date.now(),
-            title,
-            content,
-            authorMilNumber: currentUser.milNumber,
-            authorName: currentUser.name,
-            createdAt: getTodayString(),
-            status: '검토중',
-            comments: []
+        if (!isCommander) {
+          document.getElementById('writeLetterBtn')?.addEventListener('click', () => {
+            document.getElementById('letterWriteForm').classList.toggle('hidden');
           });
-          localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-          renderLetterList();
-        });
+
+          document.getElementById('submitLetterBtn')?.addEventListener('click', () => {
+            const title = document.getElementById('letterTitle').value.trim();
+            const content = document.getElementById('letterText').value.trim();
+            if (!title || !content) return alert('제목과 내용을 입력해주세요.');
+
+            letters.unshift({
+              id: Date.now(),
+              title,
+              content,
+              authorMilNumber: currentUser.milNumber,
+              authorName: currentUser.name,
+              createdAt: getTodayString(),
+              status: '검토중',
+              comments: []
+            });
+            localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
+            renderLetterList();
+          });
+        }
 
         bindCommonEvents(STORAGE_KEYS.LETTERS, renderLetterList);
       }
