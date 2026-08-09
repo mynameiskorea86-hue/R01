@@ -196,6 +196,30 @@
       font-size: 18px;
     }
 
+    /* 상태 표시 스타일 */
+    .status-badge {
+      font-weight: bold;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .status-reviewing {
+      color: #111111;
+      background-color: #e2e3e5;
+    }
+
+    .status-completed {
+      color: #28a745;
+      background-color: #d4edda;
+    }
+
+    .status-reexamine {
+      color: #dc3545;
+      background-color: #f8d7da;
+    }
+
     footer {
       margin-top: auto;
       padding-top: 16px;
@@ -424,7 +448,6 @@
         const password = document.getElementById('registerPassword').value;
         const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
 
-        // 비밀번호 일치 여부 검증
         if (password !== passwordConfirm) {
           alert('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
           document.getElementById('registerPasswordConfirm').focus();
@@ -586,15 +609,25 @@
         showScreen(detailScreen);
       }
 
+      function getStatusBadgeHTML(status) {
+        if (status === '조치완료') {
+          return `<span class="status-badge status-completed">조치완료</span>`;
+        } else if (status === '재검토') {
+          return `<span class="status-badge status-reexamine">재검토</span>`;
+        } else {
+          return `<span class="status-badge status-reviewing">검토중</span>`;
+        }
+      }
+
       function renderLetterList() {
         const detailContent = document.getElementById('detailContent');
 
         let html = `
           <div style="margin-bottom: 20px;">
-            <button id="writeLetterBtn" class="primary-btn" style="width:100%; margin-bottom:15px;">✍️ 작성하기</button>
+            <button id="writeLetterBtn" class="primary-btn" style="width:100%; margin-bottom:15px;">✍️ 마음의 편지 작성하기</button>
             <div id="letterWriteForm" class="hidden" style="background:#f5f5f5; padding:15px; border-radius:8px; margin-bottom:15px;">
               <input type="text" id="letterTitle" placeholder="제목을 입력하세요" style="width:100%; padding:8px; margin-bottom:10px; box-sizing:border-box;" required />
-              <textarea id="letterText" placeholder="내용을 입력하세요..." style="width:100%; height:80px; padding:8px; margin-bottom:10px; box-sizing:border-box;" required></textarea>
+              <textarea id="letterText" placeholder="내용을 입력하세요..." style="width:100%; height:100px; padding:8px; margin-bottom:10px; box-sizing:border-box;" required></textarea>
               <button id="submitLetterBtn" class="primary-btn" style="width:100%;">등록</button>
             </div>
           </div>
@@ -608,11 +641,13 @@
             const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
             const isMyPost = currentUser.milNumber === post.authorMilNumber;
             const authorDisplay = isMyPost ? '본인' : '익명 (***)';
+            const status = post.status || '검토중';
 
             html += `
-              <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:10px; background:#fff;">
+              <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
+                  <div>${getStatusBadgeHTML(status)}</div>
                 </div>
                 <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
                 
@@ -621,14 +656,22 @@
                     ${post.content.replace(/\n/g, '<br>')}
                   </div>
                   
-                  <div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
-                    <h5 style="margin:0 0 6px 0;">답변 / 댓글</h5>
-                    ${renderComments(post.comments)}
+                  ${currentUser.role === 'commander' ? `
+                    <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                      <span style="font-size:12px; font-weight:bold; color:#555;">상태 변경:</span>
+                      <button class="change-status-btn" data-post-id="${post.id}" data-status="조치완료" style="padding:4px 8px; font-size:11px; background-color:#28a745; color:white;">조치완료</button>
+                      <button class="change-status-btn" data-post-id="${post.id}" data-status="재검토" style="padding:4px 8px; font-size:11px; background-color:#dc3545; color:white;">재검토</button>
+                    </div>
+                  ` : ''}
+
+                  <div style="margin-top:12px; border-top:1px dashed #ddd; padding-top:10px;">
+                    <h5 style="margin:0 0 6px 0;">지휘관 답변 및 대화</h5>
+                    ${renderComments(post.id, post.comments)}
                     
                     ${(currentUser.role === 'commander' || isMyPost) ? `
-                      <div style="display:flex; gap:5px; margin-top:8px;">
-                        <input type="text" id="commentInput-${post.id}" placeholder="댓글을 입력하세요" style="flex:1; padding:6px; font-size:12px;" />
-                        <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:6px 12px; font-size:12px;">등록</button>
+                      <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+                        <textarea id="commentInput-${post.id}" placeholder="댓글 또는 답변을 작성하세요..." style="width:100%; height:60px; padding:8px; font-size:13px; resize:vertical;"></textarea>
+                        <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:8px; font-size:13px; width:100%;">답변 등록 / 수정</button>
                       </div>
                     ` : ''}
                   </div>
@@ -652,21 +695,47 @@
         document.querySelectorAll('.add-comment-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const postId = parseInt(e.target.dataset.postId);
-            addComment(postId);
+            addOrUpdateComment(postId);
+          });
+        });
+
+        document.querySelectorAll('.edit-comment-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentId = parseInt(e.target.dataset.commentId);
+            prepareCommentEdit(postId, commentId);
+          });
+        });
+
+        document.querySelectorAll('.change-status-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const status = e.target.dataset.status;
+            updateLetterStatus(postId, status);
           });
         });
       }
 
-      function renderComments(comments = []) {
+      function renderComments(postId, comments = []) {
         if (comments.length === 0) {
           return `<p style="font-size:11px; color:#999; margin:4px 0;">등록된 답변이 없습니다.</p>`;
         }
-        return comments.map(c => `
-          <div style="font-size:12px; background:#fff; padding:6px; border-radius:4px; margin-bottom:4px; border:1px solid #f0f0f0;">
-            <strong>[${c.role === 'commander' ? '지휘관' : '작성자'}]</strong>: ${c.content}
-            <span style="font-size:10px; color:#aaa; margin-left:6px;">${c.createdAt}</span>
-          </div>
-        `).join('');
+        return comments.map(c => {
+          const isMyComment = (currentUser.role === 'commander' && c.role === 'commander') || (c.author === currentUser.name);
+
+          return `
+            <div style="font-size:12px; background:#fff; padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid #e9ecef;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong>[${c.role === 'commander' ? '지휘관' : '작성자'}]</strong>
+                <div>
+                  <span style="font-size:10px; color:#aaa; margin-right:6px;">${c.createdAt}</span>
+                  ${isMyComment ? `<button class="edit-comment-btn ghost-btn" data-post-id="${postId}" data-comment-id="${c.id}" style="padding:2px 6px; font-size:10px; display:inline;">수정</button>` : ''}
+                </div>
+              </div>
+              <div style="font-size:13px; color:#333; white-space:pre-wrap;">${c.content}</div>
+            </div>
+          `;
+        }).join('');
       }
 
       function createLetter() {
@@ -686,6 +755,7 @@
           authorMilNumber: currentUser.milNumber,
           authorName: currentUser.name,
           createdAt: today,
+          status: '검토중',
           comments: []
         };
 
@@ -694,26 +764,63 @@
         renderLetterList();
       }
 
-      function addComment(postId) {
-        const input = document.getElementById(`commentInput-${postId}`);
-        const content = input.value.trim();
+      function prepareCommentEdit(postId, commentId) {
+        const post = letters.find(l => l.id === postId);
+        if (!post) return;
+
+        const comment = post.comments.find(c => c.id === commentId);
+        if (!comment) return;
+
+        const textarea = document.getElementById(`commentInput-${postId}`);
+        const button = document.querySelector(`.add-comment-btn[data-post-id="${postId}"]`);
+
+        if (textarea && button) {
+          textarea.value = comment.content;
+          textarea.dataset.editingCommentId = commentId;
+          button.textContent = '답변 수정 완료';
+          textarea.focus();
+        }
+      }
+
+      function addOrUpdateComment(postId) {
+        const textarea = document.getElementById(`commentInput-${postId}`);
+        const content = textarea.value.trim();
 
         if (!content) {
-          alert('댓글 내용을 입력하세요.');
+          alert('내용을 입력해 주세요.');
           return;
         }
 
         const post = letters.find(l => l.id === postId);
         if (post) {
           const today = getTodayString();
-          post.comments.push({
-            id: Date.now(),
-            author: currentUser.name,
-            role: currentUser.role,
-            content,
-            createdAt: today
-          });
+          const editingId = textarea.dataset.editingCommentId;
 
+          if (editingId) {
+            const comment = post.comments.find(c => c.id === parseInt(editingId));
+            if (comment) {
+              comment.content = content;
+              comment.createdAt = today + ' (수정됨)';
+            }
+          } else {
+            post.comments.push({
+              id: Date.now(),
+              author: currentUser.name,
+              role: currentUser.role,
+              content,
+              createdAt: today
+            });
+          }
+
+          localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
+          renderLetterList();
+        }
+      }
+
+      function updateLetterStatus(postId, newStatus) {
+        const post = letters.find(l => l.id === postId);
+        if (post) {
+          post.status = newStatus;
           localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
           renderLetterList();
         }
