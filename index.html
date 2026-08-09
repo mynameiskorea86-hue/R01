@@ -196,7 +196,6 @@
       font-size: 18px;
     }
 
-    /* 상태 표시 스타일 */
     .status-badge {
       font-weight: bold;
       font-size: 12px;
@@ -220,23 +219,18 @@
       background-color: #f8d7da;
     }
 
-    /* 새 댓글 알림 뱃지 */
+    /* 🔥 강조된 빨간색 NEW 뱃지 스타일 */
     .new-badge {
       background-color: #dc3545;
-      color: white;
+      color: #ffffff;
       font-size: 11px;
       font-weight: bold;
       padding: 2px 6px;
       border-radius: 10px;
-      margin-left: 4px;
+      margin-left: 6px;
       display: inline-block;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
+      vertical-align: middle;
+      box-shadow: 0 0 4px rgba(220, 53, 69, 0.6);
     }
 
     footer {
@@ -347,7 +341,7 @@
       BARBER: 'app_barber',
       SUGGESTIONS: 'app_suggestions',
       NOTICES: 'app_notices',
-      COMMENT_READS: 'app_comment_reads'
+      COMMENT_READS: 'app_comment_reads_v2'
     };
 
     function getTodayString() {
@@ -377,13 +371,28 @@
     let users = initDefaultData();
     let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
 
-    let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [];
-    let leaves = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
-    let barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
-    let suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
-    let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
+    // 데이터 복구 및 ID 표준화 (구버전 댓글 대응)
+    function sanitizeComments(items) {
+      if (!Array.isArray(items)) return [];
+      items.forEach(item => {
+        if (item.comments && Array.isArray(item.comments)) {
+          item.comments.forEach((c, idx) => {
+            if (!c.id) c.id = item.id ? (item.id * 100 + idx + 1) : (Date.now() + idx);
+          });
+        } else {
+          item.comments = [];
+        }
+      });
+      return items;
+    }
+
+    let letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || []);
+    let leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || []);
+    let barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || []);
+    let suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || []);
+    let notices = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
       { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01', comments: [] }
-    ];
+    ]);
 
     function isManager() {
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
@@ -399,40 +408,53 @@
       }
     }
 
-    // 새 댓글 개수 조회
-    function getUnreadCommentCount(postId, comments = []) {
-      if (!currentUser || !comments || comments.length === 0) return 0;
+    // --- 댓글 읽음 상태 관리 기능 ---
+    function getReadCommentIds() {
+      if (!currentUser) return [];
       const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
-      const userReads = readsMap[currentUser.milNumber] || {};
-      const lastReadId = userReads[postId] || 0;
+      return readsMap[currentUser.milNumber] || [];
+    }
 
-      // 내가 읽은 마지막 ID보다 이후에 등록된 댓글 중 내가 작성하지 않은 댓글 수
-      const unreadComments = comments.filter(c => c.id > lastReadId && c.authorMilNumber !== currentUser.milNumber);
+    function getUnreadCommentCount(comments = []) {
+      if (!currentUser || !comments || comments.length === 0) return 0;
+      const readIds = getReadCommentIds();
+
+      // 내가 작성하지 않은 댓글 중 아직 안 읽은 댓글 개수 산출
+      const unreadComments = comments.filter(c => {
+        const isMyComment = c.authorMilNumber && (c.authorMilNumber === currentUser.milNumber);
+        const isRead = readIds.includes(c.id);
+        return !isMyComment && !isRead;
+      });
+
       return unreadComments.length;
     }
 
-    // 댓글 읽음 상태 업데이트
-    function markCommentsAsRead(postId, comments = []) {
+    function markCommentsAsRead(comments = []) {
       if (!currentUser || !comments || comments.length === 0) return;
       const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
-      if (!readsMap[currentUser.milNumber]) readsMap[currentUser.milNumber] = {};
-      
-      const maxId = Math.max(...comments.map(c => c.id));
-      readsMap[currentUser.milNumber][postId] = maxId;
+      let userReads = readsMap[currentUser.milNumber] || [];
+
+      comments.forEach(c => {
+        if (!userReads.includes(c.id)) {
+          userReads.push(c.id);
+        }
+      });
+
+      readsMap[currentUser.milNumber] = userReads;
       localStorage.setItem(STORAGE_KEYS.COMMENT_READS, JSON.stringify(readsMap));
     }
 
-    // 댓글 토글 및 목록 렌더링 함수
+    // 댓글 영역 렌더링
     function renderCommentsSection(postId, comments = [], canReply = false) {
       const count = comments ? comments.length : 0;
-      const unreadCount = getUnreadCommentCount(postId, comments);
-      
-      let badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
+      const unreadCount = getUnreadCommentCount(comments);
+
+      const badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
 
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:4px 8px; font-size:12px; width:auto; color:#0056b3; border-color:#0056b3;">
-            💬 댓글 ${count}개 ${badgeHTML}
+          <button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:6px 12px; font-size:12px; width:auto; color:#0056b3; border-color:#0056b3; font-weight:bold;">
+            💬 댓글 ${count}개 보기/작성 ${badgeHTML}
           </button>
         </div>
         <div id="commentContainer-${postId}" class="hidden" style="margin-top:10px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e0e0e0;">`;
@@ -445,9 +467,9 @@
           html += `
             <div style="font-size:12px; background:#fff; padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid #e9ecef;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong>[${c.role === 'commander' ? '지휘관' : (c.role === 'admin' ? '관리자' : '작성자')}] ${c.author}</strong>
+                <strong>[${c.role === 'commander' ? '지휘관' : (c.role === 'admin' ? '관리자' : (c.role === 'officer' ? '간부' : '작성자'))}] ${c.author || '익명'}</strong>
                 <div>
-                  <span style="font-size:10px; color:#aaa; margin-right:6px;">${c.createdAt}</span>
+                  <span style="font-size:10px; color:#aaa; margin-right:6px;">${c.createdAt || ''}</span>
                   ${isMyComment ? `<button class="edit-comment-btn ghost-btn" data-post-id="${postId}" data-comment-id="${c.id}" style="padding:2px 6px; font-size:10px; display:inline;">수정</button>` : ''}
                 </div>
               </div>
@@ -614,22 +636,22 @@
         });
       });
 
-      // 공통 코멘트 및 상태 처리 바인딩 함수
+      // 공통 댓글 및 상태 관리
       function bindCommonEvents(storageKey, renderFunc) {
         document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const postId = parseInt(e.currentTarget.dataset.postId);
             const container = document.getElementById(`commentContainer-${postId}`);
             if (container) {
-              const isOpening = container.classList.contains('hidden');
+              const isHidden = container.classList.contains('hidden');
               container.classList.toggle('hidden');
 
-              // 댓글창을 열 때 읽음 처리 및 N 뱃지 삭제
-              if (isOpening) {
+              // 댓글창을 열 때 읽음 처리 및 N 뱃지 바로 제거
+              if (isHidden) {
                 let items = JSON.parse(localStorage.getItem(storageKey)) || [];
                 const post = items.find(i => i.id === postId);
                 if (post && post.comments) {
-                  markCommentsAsRead(postId, post.comments);
+                  markCommentsAsRead(post.comments);
                   const badge = e.currentTarget.querySelector('.new-badge');
                   if (badge) badge.remove();
                 }
@@ -670,10 +692,12 @@
               }
 
               localStorage.setItem(storageKey, JSON.stringify(items));
-              markCommentsAsRead(postId, post.comments); // 작성자 본인은 최신 읽음 처리
+              
+              // 본인이 쓴 댓글은 읽음 처리
+              markCommentsAsRead(post.comments); 
               renderFunc();
               
-              // 댓글 작성 후 댓글창 펼쳐짐 상태 유지
+              // 작성 후 댓글창 펼쳐진 상태 유지
               const container = document.getElementById(`commentContainer-${postId}`);
               if (container) container.classList.remove('hidden');
             }
@@ -725,7 +749,7 @@
       }
 
       function renderLeavePage() {
-        leaves = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
+        leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || []);
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
@@ -807,7 +831,7 @@
       }
 
       function renderLetterList() {
-        letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [];
+        letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || []);
         const detailContent = document.getElementById('detailContent');
 
         let html = `
@@ -898,7 +922,7 @@
       }
 
       function renderBarberPage() {
-        barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
+        barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || []);
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
@@ -966,7 +990,7 @@
       }
 
       function renderSuggestionPage() {
-        suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
+        suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || []);
         const detailContent = document.getElementById('detailContent');
 
         let html = `
@@ -1037,7 +1061,7 @@
       }
 
       function renderNoticePage() {
-        notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [];
+        notices = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || []);
         const detailContent = document.getElementById('detailContent');
 
         let html = '';
