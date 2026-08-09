@@ -5,8 +5,44 @@ const STORAGE_KEYS = {
   LETTERS: 'app_letters'
 };
 
-// 기본 초기화 데이터
-let users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+// 기본 관리자 및 테스트 계정 초기화 함수
+function initDefaultData() {
+  let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+  
+  // 기본 관리자 계정 (admin / admin1234)
+  const defaultAdmin = {
+    milNumber: 'admin',
+    name: '최고관리자',
+    birthDate: '1990-01-01',
+    unitCode: '5기갑 방공대',
+    role: 'admin',
+    password: 'admin1234'
+  };
+
+  // 기본 지휘관 계정 (commander / commander1234)
+  const defaultCommander = {
+    milNumber: 'commander',
+    name: '방공대장',
+    birthDate: '1985-01-01',
+    unitCode: '5기갑 방공대',
+    role: 'commander',
+    password: 'commander1234'
+  };
+
+  // 관리자 계정이 목록에 없다면 자동 추가
+  if (!savedUsers.some(u => u.milNumber === 'admin')) {
+    savedUsers.push(defaultAdmin);
+  }
+  if (!savedUsers.some(u => u.milNumber === 'commander')) {
+    savedUsers.push(defaultCommander);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(savedUsers));
+  return savedUsers;
+}
+
+// 데이터 로드
+let users = initDefaultData();
 let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
 let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [
   {
@@ -22,7 +58,7 @@ let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [
   }
 ];
 
-// DOM 요소 획득
+// DOM 요소 획득 및 이벤트 연결
 document.addEventListener('DOMContentLoaded', () => {
   const authScreen = document.getElementById('authScreen');
   const homeScreen = document.getElementById('homeScreen');
@@ -41,10 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
     screen.classList.add('active');
   }
 
-  // 앱 로그인 상태 업데이트
+  // 앱 UI 로그인 상태 업데이트
   function updateUI() {
     if (currentUser) {
-      document.getElementById('userGreeting').textContent = `${currentUser.name} ${currentUser.role === 'commander' ? '지휘관' : currentUser.role === 'admin' ? '관리자' : '용사'}님 환영합니다`;
+      let roleName = '용사';
+      if (currentUser.role === 'commander') roleName = '지휘관';
+      if (currentUser.role === 'admin') roleName = '관리자';
+
+      document.getElementById('userGreeting').textContent = `${currentUser.name} (${roleName})님 환영합니다`;
       document.getElementById('userInfoText').textContent = `${currentUser.milNumber} · ${currentUser.unitCode}`;
       logoutBtn.classList.remove('hidden');
 
@@ -61,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 회원가입 카드 토글
+  // 회원가입 창 토글
   showRegisterBtn.addEventListener('click', () => {
     registerCard.classList.toggle('hidden');
   });
@@ -77,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('registerPassword').value;
 
     if (users.find(u => u.milNumber === milNumber)) {
-      alert('이미 가입된 군번입니다.');
+      alert('이미 가입된 군번/아이디입니다.');
       return;
     }
 
@@ -95,13 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const milNumber = document.getElementById('loginMilNumber').value.trim();
     const password = document.getElementById('loginPassword').value;
 
+    // 최신 사용자 정보 최신화
+    users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+
     const user = users.find(u => u.milNumber === milNumber && u.password === password);
     if (user) {
       currentUser = user;
       localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
       updateUI();
     } else {
-      alert('군번 또는 비밀번호가 올바르지 않습니다.');
+      alert('군번(아이디) 또는 비밀번호가 올바르지 않습니다.');
     }
   });
 
@@ -112,12 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUI();
   });
 
-  // 메인으로 이동
+  // 메인으로 돌아가기
   backToHomeBtn.addEventListener('click', () => {
     showScreen(homeScreen);
   });
 
-  // 메뉴 버튼 클릭 이벤트 (대장과의 대화 등)
+  // 메뉴 버튼 이벤트
   document.querySelectorAll('.menu-card').forEach(btn => {
     btn.addEventListener('click', () => {
       const menu = btn.dataset.menu;
@@ -132,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 💬 대장과의 대화 (마음의 편지) 핵심 로직
+  // 💬 대장과의 대화 (마음의 편지)
   // ==========================================
 
   function openLetterBoard() {
@@ -141,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen(detailScreen);
   }
 
-  // 목록 및 작성 폼 출력
   function renderLetterList() {
     const detailContent = document.getElementById('detailContent');
 
@@ -161,16 +203,16 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
-        // 열람 권한 검증: 본인 또는 지휘관(commander)만 가능 (관리자 admin 및 타 용사/간부 제외)
+        // 열람 권한: 작성 본인 또는 지휘관(commander)만 가능 (관리자 admin 및 일반 용사 제외)
         const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
 
-        // 아이디/작성자 익명 처리 (본인일 때만 '본인' 표시)
+        // 작성자 아이디 익명화
         const authorDisplay = isMyPost ? '본인' : '익명 (***)';
 
         html += `
           <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:10px; background:#fff;">
-            <div style="display:flex; justify-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
               <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
             </div>
             <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
@@ -185,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h5 style="margin:0 0 6px 0;">답변 / 댓글</h5>
                 ${renderComments(post.comments)}
                 
-                <!-- 댓글 작성 권한: 본인 또는 지휘관(commander)만 작성 가능 -->
+                <!-- 댓글 작성 권한: 작성 본인 또는 지휘관(commander)만 가능 -->
                 ${(currentUser.role === 'commander' || isMyPost) ? `
                   <div style="display:flex; gap:5px; margin-top:8px;">
                     <input type="text" id="commentInput-${post.id}" placeholder="댓글을 입력하세요" style="flex:1; padding:6px; font-size:12px;" />
@@ -219,7 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 댓글 목록 렌더링
   function renderComments(comments = []) {
     if (comments.length === 0) {
       return `<p style="font-size:11px; color:#999; margin:4px 0;">등록된 답변이 없습니다.</p>`;
@@ -232,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  // 새 편지 작성 처리
   function createLetter() {
     const title = document.getElementById('letterTitle').value.trim();
     const content = document.getElementById('letterText').value.trim();
@@ -258,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLetterList();
   }
 
-  // 댓글 추가 처리
   function addComment(postId) {
     const input = document.getElementById(`commentInput-${postId}`);
     const content = input.value.trim();
@@ -284,6 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 초기 실행
+  // 초기 로그인 상태 업데이트 실행
   updateUI();
 });
