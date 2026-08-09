@@ -69,6 +69,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const backToHomeBtn = document.getElementById('backToHomeBtn');
   const adminCard = document.getElementById('adminCard');
 
+  // 회원가입 내 직책 선택 요소 제어
+  const roleSelect = document.getElementById('roleSelect');
+  const registerSoldierDatesGroup = document.getElementById('registerSoldierDatesGroup');
+
+  if (roleSelect && registerSoldierDatesGroup) {
+    roleSelect.addEventListener('change', () => {
+      // 용사(user) 선택 시에만 입대일/전역일 노출
+      if (roleSelect.value === 'user') {
+        registerSoldierDatesGroup.style.display = 'flex';
+      } else {
+        registerSoldierDatesGroup.style.display = 'none';
+      }
+    });
+  }
+
   // 화면 전환 제어
   function showScreen(targetScreen) {
     [authScreen, homeScreen, detailScreen].forEach(s => {
@@ -116,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     registerCard.classList.toggle('hidden');
   });
 
-  // 회원가입
+  // 회원가입 처리
   registerForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('milNumber').value.trim();
@@ -131,11 +146,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const newUser = { milNumber, name, unitCode, role, password };
+
+    // 용사 선택 시에만 입대일/전역예정일 등록
+    if (role === 'user') {
+      const enlistDateInput = document.getElementById('registerEnlistDate');
+      const dischargeDateInput = document.getElementById('registerDischargeDate');
+      
+      if (enlistDateInput) newUser.enlistDate = enlistDateInput.value;
+      if (dischargeDateInput) newUser.dischargeDate = dischargeDateInput.value;
+    }
+
     users.push(newUser);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     alert('회원가입이 완료되었습니다.');
     registerCard.classList.add('hidden');
     registerForm.reset();
+
+    // 초기 상태 복원
+    if (registerSoldierDatesGroup) registerSoldierDatesGroup.style.display = 'flex';
   });
 
   // 로그인
@@ -533,10 +561,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 6. 🗂️ 관리자 DB (관리자 전용 CRUD 입력, 수정, 삭제)
+  // 6. 🗂️ 관리자 DB 제어 (관리자 전용 CRUD)
   // ==========================================
   function openAdminPage() {
-    // 🔒 권한 검증: 관리자(admin)가 아니면 접근 차단
+    // 🔒 관리자(admin) 권한 확인
     if (!currentUser || currentUser.role !== 'admin') {
       alert('관리자만 접근 가능한 페이지입니다.');
       showScreen(homeScreen);
@@ -568,6 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <input type="text" id="dbUnitCode" placeholder="예: 5기갑 방공대" style="width:100%; padding:6px; box-sizing:border-box;" required />
           </label>
           
+          <!-- 용사 선택 시에만 입력할 수 있는 날짜 항목 -->
           <div id="soldierDatesGroup" style="display:flex; flex-direction:column; gap:8px;">
             <label style="font-size:12px;">입대일
               <input type="date" id="dbEnlistDate" style="width:100%; padding:6px; box-sizing:border-box;" />
@@ -593,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbRoleSelect = document.getElementById('dbRole');
     const soldierDatesGroup = document.getElementById('soldierDatesGroup');
 
+    // 직책 선택에 따른 입대일/전역일 처리
     dbRoleSelect.addEventListener('change', () => {
       if (dbRoleSelect.value === 'user') {
         soldierDatesGroup.style.display = 'flex';
@@ -635,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen(detailScreen);
   }
 
-  // 관리자 DB 유저 목록 렌더링 (수정 / 삭제 기능 포함)
+  // 관리자 DB 목록 표시 (수정/삭제 제공)
   function renderAdminUserList() {
     const listContainer = document.getElementById('adminUserList');
     document.getElementById('userCount').textContent = users.length;
@@ -661,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    // 수정 버튼 이벤트
+    // 수정 처리
     document.querySelectorAll('.edit-user-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const milNumber = e.target.dataset.mil;
@@ -669,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // 삭제 버튼 이벤트
+    // 삭제 처리
     document.querySelectorAll('.delete-user-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const milNumber = e.target.dataset.mil;
@@ -678,13 +708,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // DB 유저 수정 함수
+  // DB 사용자 수정
   function editUserDB(milNumber) {
     const targetUser = users.find(u => u.milNumber === milNumber);
     if (!targetUser) return;
 
     const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
-    if (newName === null) return; // 취소 클릭 시
+    if (newName === null) return;
 
     const newUnitCode = prompt('수정할 부대 코드를 입력하세요:', targetUser.unitCode);
     if (newUnitCode === null) return;
@@ -709,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAdminUserList();
   }
 
-  // DB 유저 삭제 함수
+  // DB 사용자 삭제
   function deleteUserDB(milNumber) {
     if (confirm(`군번 [${milNumber}] 인원을 정말 삭제하시겠습니까?`)) {
       users = users.filter(u => u.milNumber !== milNumber);
@@ -719,6 +749,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 초기 상태 로드
+  // 초기 실행
   updateUI();
 });
