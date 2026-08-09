@@ -1,0 +1,11 @@
+{
+  "name": "5기갑 방공대 커뮤니티",
+  "short_name": "방공대 커뮤니티",
+  "start_url": "/R01/",
+  "scope": "/R01/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0056b3",
+  "description": "5기갑 방공대 커뮤니티 앱",
+  "lang": "ko-KR"
+}
