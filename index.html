@@ -340,7 +340,6 @@
 
     function initDefaultData() {
       let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-      
       const hasAdmin = savedUsers.some(u => u.milNumber === 'admin');
       if (!hasAdmin) {
         savedUsers.push({
@@ -351,7 +350,6 @@
           unitCode: '본부'
         });
       }
-
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(savedUsers));
       return savedUsers;
     }
@@ -364,8 +362,65 @@
     let barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
     let suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
     let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
-      { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
+      { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01', comments: [] }
     ];
+
+    function isManager() {
+      return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
+    }
+
+    function getStatusBadgeHTML(status) {
+      if (status === '조치완료') {
+        return `<span class="status-badge status-completed">조치완료</span>`;
+      } else if (status === '재검토') {
+        return `<span class="status-badge status-reexamine">재검토</span>`;
+      } else {
+        return `<span class="status-badge status-reviewing">검토중</span>`;
+      }
+    }
+
+    function renderCommentsSection(postId, comments = [], canReply = false) {
+      let html = `<div style="margin-top:12px; border-top:1px dashed #ddd; padding-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h5 style="margin:0; font-size:13px; color:#555;">답변 및 댓글 목록</h5>
+          ${canReply ? `<button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:4px 8px; font-size:11px; width:auto;">💬 답변 작성/수정</button>` : ''}
+        </div>`;
+
+      if (!comments || comments.length === 0) {
+        html += `<p style="font-size:11px; color:#999; margin:4px 0;">등록된 답변이 없습니다.</p>`;
+      } else {
+        comments.forEach(c => {
+          const isMyComment = (isManager() && (c.role === 'commander' || c.role === 'admin')) || (c.author === currentUser?.name);
+          html += `
+            <div style="font-size:12px; background:#fff; padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid #e9ecef;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong>[${c.role === 'commander' ? '지휘관' : (c.role === 'admin' ? '관리자' : '작성자')}] ${c.author}</strong>
+                <div>
+                  <span style="font-size:10px; color:#aaa; margin-right:6px;">${c.createdAt}</span>
+                  ${isMyComment ? `<button class="edit-comment-btn ghost-btn" data-post-id="${postId}" data-comment-id="${c.id}" style="padding:2px 6px; font-size:10px; display:inline;">수정</button>` : ''}
+                </div>
+              </div>
+              <div style="font-size:13px; color:#333; white-space:pre-wrap;">${c.content}</div>
+            </div>
+          `;
+        });
+      }
+
+      if (canReply) {
+        html += `
+          <div id="commentBox-${postId}" class="hidden" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e0e0e0;">
+            <textarea id="commentInput-${postId}" placeholder="답변 또는 댓글을 입력하세요..." style="width:100%; height:70px; padding:8px; font-size:13px; resize:vertical;"></textarea>
+            <div style="display:flex; gap:6px;">
+              <button class="add-comment-btn primary-btn" data-post-id="${postId}" style="padding:8px; font-size:12px; flex:1;">등록하기</button>
+              <button class="cancel-comment-btn ghost-btn" data-post-id="${postId}" style="padding:8px; font-size:12px; width:auto;">취소</button>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+      return html;
+    }
 
     function initApp() {
       const authScreen = document.getElementById('authScreen');
@@ -384,11 +439,7 @@
 
       if (roleSelect && registerSoldierDatesGroup) {
         roleSelect.addEventListener('change', () => {
-          if (roleSelect.value === 'user') {
-            registerSoldierDatesGroup.style.display = 'flex';
-          } else {
-            registerSoldierDatesGroup.style.display = 'none';
-          }
+          registerSoldierDatesGroup.style.display = roleSelect.value === 'user' ? 'flex' : 'none';
         });
       }
 
@@ -421,11 +472,7 @@
           if (logoutBtn) logoutBtn.classList.remove('hidden');
 
           if (adminCard) {
-            if (currentUser.role === 'admin') {
-              adminCard.classList.remove('hidden');
-            } else {
-              adminCard.classList.add('hidden');
-            }
+            adminCard.classList.toggle('hidden', currentUser.role !== 'admin');
           }
 
           showScreen(homeScreen);
@@ -435,9 +482,7 @@
         }
       }
 
-      showRegisterBtn?.addEventListener('click', () => {
-        registerCard.classList.toggle('hidden');
-      });
+      showRegisterBtn?.addEventListener('click', () => registerCard.classList.toggle('hidden'));
 
       registerForm?.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -449,8 +494,7 @@
         const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
 
         if (password !== passwordConfirm) {
-          alert('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
-          document.getElementById('registerPasswordConfirm').focus();
+          alert('비밀번호가 일치하지 않습니다.');
           return;
         }
 
@@ -459,14 +503,10 @@
 
         if (existingUserIndex !== -1) {
           if (users[existingUserIndex].password) {
-            alert('이미 회원가입이 완료된 계정입니다.');
+            alert('이미 가입된 계정입니다.');
             return;
           } else {
-            users[existingUserIndex].name = name;
-            users[existingUserIndex].unitCode = unitCode;
-            users[existingUserIndex].role = role;
-            users[existingUserIndex].password = password;
-
+            users[existingUserIndex] = { ...users[existingUserIndex], name, unitCode, role, password };
             if (role === 'user') {
               users[existingUserIndex].enlistDate = document.getElementById('registerEnlistDate').value;
               users[existingUserIndex].dischargeDate = document.getElementById('registerDischargeDate').value;
@@ -482,11 +522,9 @@
         }
 
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-        alert('회원가입이 완료되었습니다! 설정하신 비밀번호로 로그인해 주세요.');
+        alert('회원가입 완료! 로그인해 주세요.');
         registerCard.classList.add('hidden');
         registerForm.reset();
-
-        if (registerSoldierDatesGroup) registerSoldierDatesGroup.style.display = 'flex';
       });
 
       loginForm?.addEventListener('submit', (e) => {
@@ -502,7 +540,7 @@
           localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
           updateUI();
         } else {
-          alert('군번(아이디) 또는 비밀번호가 올바르지 않거나, 회원가입이 완료되지 않은 계정입니다.');
+          alert('군번 또는 비밀번호가 올바르지 않습니다.');
         }
       });
 
@@ -512,9 +550,7 @@
         updateUI();
       });
 
-      backToHomeBtn?.addEventListener('click', () => {
-        showScreen(homeScreen);
-      });
+      backToHomeBtn?.addEventListener('click', () => showScreen(homeScreen));
 
       document.querySelectorAll('.menu-card').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -528,13 +564,116 @@
         });
       });
 
+      // 공통 코멘트 및 상태 처리 바인딩 함수
+      function bindCommonEvents(storageKey, renderFunc) {
+        document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentBox = document.getElementById(`commentBox-${postId}`);
+            if (commentBox) commentBox.classList.toggle('hidden');
+          });
+        });
+
+        document.querySelectorAll('.cancel-comment-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentBox = document.getElementById(`commentBox-${postId}`);
+            const textarea = document.getElementById(`commentInput-${postId}`);
+            if (textarea) {
+              textarea.value = '';
+              delete textarea.dataset.editingCommentId;
+            }
+            if (commentBox) commentBox.classList.add('hidden');
+          });
+        });
+
+        document.querySelectorAll('.add-comment-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const textarea = document.getElementById(`commentInput-${postId}`);
+            const content = textarea.value.trim();
+            if (!content) return alert('내용을 입력해주세요.');
+
+            let items = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const post = items.find(i => i.id === postId);
+            if (post) {
+              if (!post.comments) post.comments = [];
+              const editingId = textarea.dataset.editingCommentId;
+
+              if (editingId) {
+                const comment = post.comments.find(c => c.id === parseInt(editingId));
+                if (comment) {
+                  comment.content = content;
+                  comment.createdAt = getTodayString() + ' (수정됨)';
+                }
+              } else {
+                post.comments.push({
+                  id: Date.now(),
+                  author: currentUser.name,
+                  role: currentUser.role,
+                  content,
+                  createdAt: getTodayString()
+                });
+              }
+              localStorage.setItem(storageKey, JSON.stringify(items));
+              renderFunc();
+            }
+          });
+        });
+
+        document.querySelectorAll('.edit-comment-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentId = parseInt(e.target.dataset.commentId);
+            let items = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const post = items.find(i => i.id === postId);
+            if (!post) return;
+            const comment = post.comments.find(c => c.id === commentId);
+            if (!comment) return;
+
+            const commentBox = document.getElementById(`commentBox-${postId}`);
+            const textarea = document.getElementById(`commentInput-${postId}`);
+            const button = document.querySelector(`#commentBox-${postId} .add-comment-btn`);
+
+            if (textarea && button && commentBox) {
+              textarea.value = comment.content;
+              textarea.dataset.editingCommentId = commentId;
+              button.textContent = '수정 완료';
+              commentBox.classList.remove('hidden');
+              textarea.focus();
+            }
+          });
+        });
+
+        document.querySelectorAll('.change-status-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const status = e.target.dataset.status;
+            let items = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const post = items.find(i => i.id === postId);
+            if (post) {
+              post.status = status;
+              localStorage.setItem(storageKey, JSON.stringify(items));
+              renderFunc();
+            }
+          });
+        });
+      }
+
+      /* 1. 출타신청 (전체 열람) */
       function openLeavePage() {
         document.getElementById('detailTitle').textContent = '방공대 출타신청';
+        renderLeavePage();
+        showScreen(detailScreen);
+      }
+
+      function renderLeavePage() {
+        leaves = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
-        detailContent.innerHTML = `
-          <form id="leaveForm" style="display:flex; flex-direction:column; gap:10px;">
+        let html = `
+          <form id="leaveForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
             <label>출타 유형
               <select id="leaveType" style="width:100%; padding:8px;" required>
                 <option value="휴가">휴가</option>
@@ -548,21 +687,38 @@
             <button type="submit" class="primary-btn">신청하기</button>
           </form>
           <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
-          <h3>내 신청 현황</h3>
-          <div id="leaveList"></div>
+          <h3>전체 출타 신청 목록</h3>
+          <div id="leaveList">
         `;
 
-        renderLeaveList();
+        if (leaves.length === 0) {
+          html += `<p style="font-size:12px; color:#888;">신청 내역이 없습니다.</p>`;
+        } else {
+          leaves.forEach(l => {
+            const status = l.status || '검토중';
+            html += `
+              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong>[${l.type}] ${l.name} (${l.milNumber || '용사'})</strong>
+                  ${getStatusBadgeHTML(status)}
+                </div>
+                <p style="font-size:12px; color:#555; margin:6px 0;">기간: ${l.start} ~ ${l.end}<br/>사유: ${l.reason}</p>
+                ${isManager() ? `
+                  <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
+                    <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
+                    <button class="change-status-btn" data-post-id="${l.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">조치완료</button>
+                    <button class="change-status-btn" data-post-id="${l.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
+                    <button class="change-status-btn" data-post-id="${l.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                  </div>
+                ` : ''}
+                ${renderCommentsSection(l.id, l.comments, isManager() || currentUser.milNumber === l.milNumber)}
+              </div>
+            `;
+          });
+        }
 
-        const startInput = document.getElementById('leaveStart');
-        const endInput = document.getElementById('leaveEnd');
-
-        startInput.addEventListener('change', () => {
-          endInput.min = startInput.value;
-          if (endInput.value && endInput.value < startInput.value) {
-            endInput.value = startInput.value;
-          }
-        });
+        html += `</div>`;
+        detailContent.innerHTML = html;
 
         document.getElementById('leaveForm').addEventListener('submit', (e) => {
           e.preventDefault();
@@ -571,55 +727,30 @@
             milNumber: currentUser.milNumber,
             name: currentUser.name,
             type: document.getElementById('leaveType').value,
-            start: startInput.value,
-            end: endInput.value,
+            start: document.getElementById('leaveStart').value,
+            end: document.getElementById('leaveEnd').value,
             reason: document.getElementById('leaveReason').value,
-            status: '대기중'
+            status: '검토중',
+            comments: []
           };
           leaves.unshift(newLeave);
           localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
           alert('출타 신청이 완료되었습니다.');
-          renderLeaveList();
+          renderLeavePage();
         });
 
-        showScreen(detailScreen);
+        bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      function renderLeaveList() {
-        const leaveList = document.getElementById('leaveList');
-        const myLeaves = leaves.filter(l => l.milNumber === currentUser.milNumber);
-
-        if (myLeaves.length === 0) {
-          leaveList.innerHTML = `<p style="font-size:12px; color:#888;">신청 내역이 없습니다.</p>`;
-          return;
-        }
-
-        leaveList.innerHTML = myLeaves.map(l => `
-          <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-            <strong>[${l.type}]</strong> ${l.start} ~ ${l.end}<br/>
-            <span style="font-size:12px; color:#555;">사유: ${l.reason}</span><br/>
-            <span style="font-size:12px; color:#007bff;">상태: ${l.status}</span>
-          </div>
-        `).join('');
-      }
-
+      /* 2. 대장과의 대화 (기존 비밀글 상태 및 권한 유지) */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
         showScreen(detailScreen);
       }
 
-      function getStatusBadgeHTML(status) {
-        if (status === '조치완료') {
-          return `<span class="status-badge status-completed">조치완료</span>`;
-        } else if (status === '재검토') {
-          return `<span class="status-badge status-reexamine">재검토</span>`;
-        } else {
-          return `<span class="status-badge status-reviewing">검토중</span>`;
-        }
-      }
-
       function renderLetterList() {
+        letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [];
         const detailContent = document.getElementById('detailContent');
 
         let html = `
@@ -638,7 +769,7 @@
           html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
         } else {
           letters.forEach((post) => {
-            const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
+            const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander' || currentUser.role === 'admin';
             const isMyPost = currentUser.milNumber === post.authorMilNumber;
             const authorDisplay = isMyPost ? '본인' : '익명 (***)';
             const status = post.status || '검토중';
@@ -656,7 +787,7 @@
                     ${post.content.replace(/\n/g, '<br>')}
                   </div>
                   
-                  ${currentUser.role === 'commander' ? `
+                  ${isManager() ? `
                     <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
                       <span style="font-size:12px; font-weight:bold; color:#555;">상태 변경:</span>
                       <button class="change-status-btn" data-post-id="${post.id}" data-status="조치완료" style="padding:4px 8px; font-size:11px; background-color:#28a745; color:white;">조치완료</button>
@@ -664,26 +795,7 @@
                     </div>
                   ` : ''}
 
-                  <div style="margin-top:12px; border-top:1px dashed #ddd; padding-top:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                      <h5 style="margin:0;">지휘관 답변 및 대화</h5>
-                      ${(currentUser.role === 'commander' || isMyPost) ? `
-                        <button class="toggle-comment-box-btn ghost-btn" data-post-id="${post.id}" style="padding:4px 8px; font-size:11px; width:auto;">💬 답변 작성/수정</button>
-                      ` : ''}
-                    </div>
-
-                    ${renderComments(post.id, post.comments)}
-                    
-                    ${(currentUser.role === 'commander' || isMyPost) ? `
-                      <div id="commentBox-${post.id}" class="hidden" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e0e0e0;">
-                        <textarea id="commentInput-${post.id}" placeholder="답변 내용을 입력하세요..." style="width:100%; height:70px; padding:8px; font-size:13px; resize:vertical;"></textarea>
-                        <div style="display:flex; gap:6px;">
-                          <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:8px; font-size:12px; flex:1;">등록하기</button>
-                          <button class="cancel-comment-btn ghost-btn" data-post-id="${post.id}" style="padding:8px; font-size:12px; width:auto;">취소</button>
-                        </div>
-                      </div>
-                    ` : ''}
-                  </div>
+                  ${renderCommentsSection(post.id, post.comments, isManager() || isMyPost)}
                 ` : `
                   <p style="font-size:12px; color:#d9534f; margin-top:8px;">🔒 비밀글입니다. 작성자와 지휘관만 열람할 수 있습니다.</p>
                 `}
@@ -699,299 +811,236 @@
           document.getElementById('letterWriteForm').classList.toggle('hidden');
         });
 
-        document.getElementById('submitLetterBtn')?.addEventListener('click', createLetter);
+        document.getElementById('submitLetterBtn')?.addEventListener('click', () => {
+          const title = document.getElementById('letterTitle').value.trim();
+          const content = document.getElementById('letterText').value.trim();
+          if (!title || !content) return alert('제목과 내용을 입력해주세요.');
 
-        // 답변 작성/수정 버튼 클릭 이벤트 (입력창 토글)
-        document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
-            const commentBox = document.getElementById(`commentBox-${postId}`);
-            if (commentBox) {
-              commentBox.classList.toggle('hidden');
-            }
+          letters.unshift({
+            id: Date.now(),
+            title,
+            content,
+            authorMilNumber: currentUser.milNumber,
+            authorName: currentUser.name,
+            createdAt: getTodayString(),
+            status: '검토중',
+            comments: []
           });
-        });
-
-        // 취소 버튼 이벤트
-        document.querySelectorAll('.cancel-comment-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
-            const commentBox = document.getElementById(`commentBox-${postId}`);
-            const textarea = document.getElementById(`commentInput-${postId}`);
-            if (textarea) {
-              textarea.value = '';
-              delete textarea.dataset.editingCommentId;
-            }
-            if (commentBox) {
-              commentBox.classList.add('hidden');
-            }
-          });
-        });
-
-        // 댓글 등록/수정 전송
-        document.querySelectorAll('.add-comment-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
-            addOrUpdateComment(postId);
-          });
-        });
-
-        // 기존 댓글 내 수정 버튼 클릭
-        document.querySelectorAll('.edit-comment-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
-            const commentId = parseInt(e.target.dataset.commentId);
-            prepareCommentEdit(postId, commentId);
-          });
-        });
-
-        // 상태 변경 버튼
-        document.querySelectorAll('.change-status-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
-            const status = e.target.dataset.status;
-            updateLetterStatus(postId, status);
-          });
-        });
-      }
-
-      function renderComments(postId, comments = []) {
-        if (comments.length === 0) {
-          return `<p style="font-size:11px; color:#999; margin:4px 0;">등록된 답변이 없습니다.</p>`;
-        }
-        return comments.map(c => {
-          const isMyComment = (currentUser.role === 'commander' && c.role === 'commander') || (c.author === currentUser.name);
-
-          return `
-            <div style="font-size:12px; background:#fff; padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid #e9ecef;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong>[${c.role === 'commander' ? '지휘관' : '작성자'}]</strong>
-                <div>
-                  <span style="font-size:10px; color:#aaa; margin-right:6px;">${c.createdAt}</span>
-                  ${isMyComment ? `<button class="edit-comment-btn ghost-btn" data-post-id="${postId}" data-comment-id="${c.id}" style="padding:2px 6px; font-size:10px; display:inline;">수정</button>` : ''}
-                </div>
-              </div>
-              <div style="font-size:13px; color:#333; white-space:pre-wrap;">${c.content}</div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      function createLetter() {
-        const title = document.getElementById('letterTitle').value.trim();
-        const content = document.getElementById('letterText').value.trim();
-
-        if (!title || !content) {
-          alert('제목과 내용을 모두 입력해 주세요.');
-          return;
-        }
-
-        const today = getTodayString();
-        const newLetter = {
-          id: Date.now(),
-          title,
-          content,
-          authorMilNumber: currentUser.milNumber,
-          authorName: currentUser.name,
-          createdAt: today,
-          status: '검토중',
-          comments: []
-        };
-
-        letters.unshift(newLetter);
-        localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-        renderLetterList();
-      }
-
-      function prepareCommentEdit(postId, commentId) {
-        const post = letters.find(l => l.id === postId);
-        if (!post) return;
-
-        const comment = post.comments.find(c => c.id === commentId);
-        if (!comment) return;
-
-        const commentBox = document.getElementById(`commentBox-${postId}`);
-        const textarea = document.getElementById(`commentInput-${postId}`);
-        const button = document.querySelector(`.add-comment-btn[data-post-id="${postId}"]`);
-
-        if (textarea && button && commentBox) {
-          textarea.value = comment.content;
-          textarea.dataset.editingCommentId = commentId;
-          button.textContent = '수정 완료';
-          commentBox.classList.remove('hidden');
-          textarea.focus();
-        }
-      }
-
-      function addOrUpdateComment(postId) {
-        const textarea = document.getElementById(`commentInput-${postId}`);
-        const content = textarea.value.trim();
-
-        if (!content) {
-          alert('내용을 입력해 주세요.');
-          return;
-        }
-
-        const post = letters.find(l => l.id === postId);
-        if (post) {
-          const today = getTodayString();
-          const editingId = textarea.dataset.editingCommentId;
-
-          if (editingId) {
-            const comment = post.comments.find(c => c.id === parseInt(editingId));
-            if (comment) {
-              comment.content = content;
-              comment.createdAt = today + ' (수정됨)';
-            }
-          } else {
-            post.comments.push({
-              id: Date.now(),
-              author: currentUser.name,
-              role: currentUser.role,
-              content,
-              createdAt: today
-            });
-          }
-
-          localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-          renderLetterList(); // 리렌더링 시 입력창은 자동으로 초기화 및 숨김 처리됩니다.
-        }
-      }
-
-      function updateLetterStatus(postId, newStatus) {
-        const post = letters.find(l => l.id === postId);
-        if (post) {
-          post.status = newStatus;
           localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
           renderLetterList();
-        }
+        });
+
+        bindCommonEvents(STORAGE_KEYS.LETTERS, renderLetterList);
       }
 
+      /* 3. 이발소 신청 (전체 열람) */
       function openBarberPage() {
         document.getElementById('detailTitle').textContent = '이발소 예약 신청';
+        renderBarberPage();
+        showScreen(detailScreen);
+      }
+
+      function renderBarberPage() {
+        barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
-        detailContent.innerHTML = `
-          <form id="barberForm" style="display:flex; flex-direction:column; gap:10px;">
+        let html = `
+          <form id="barberForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
             <label>예약 희망일 <input type="date" id="barberDate" min="${today}" style="width:100%; padding:8px;" required /></label>
             <button type="submit" class="primary-btn">예약하기</button>
           </form>
           <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
-          <h3>내 예약 내역</h3>
-          <div id="barberList"></div>
+          <h3>전체 이발소 예약 목록</h3>
+          <div id="barberList">
         `;
 
-        renderBarberList();
+        if (barberBookings.length === 0) {
+          html += `<p style="font-size:12px; color:#888;">예약 내역이 없습니다.</p>`;
+        } else {
+          barberBookings.forEach(b => {
+            const status = b.status || '검토중';
+            html += `
+              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong>📅 ${b.date} - ${b.name} (${b.milNumber || '용사'})</strong>
+                  ${getStatusBadgeHTML(status)}
+                </div>
+                ${isManager() ? `
+                  <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                    <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
+                    <button class="change-status-btn" data-post-id="${b.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">조치완료</button>
+                    <button class="change-status-btn" data-post-id="${b.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
+                    <button class="change-status-btn" data-post-id="${b.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                  </div>
+                ` : ''}
+                ${renderCommentsSection(b.id, b.comments, isManager() || currentUser.milNumber === b.milNumber)}
+              </div>
+            `;
+          });
+        }
+
+        html += `</div>`;
+        detailContent.innerHTML = html;
 
         document.getElementById('barberForm').addEventListener('submit', (e) => {
           e.preventDefault();
-          const newBooking = {
+          barberBookings.unshift({
             id: Date.now(),
             milNumber: currentUser.milNumber,
             name: currentUser.name,
-            date: document.getElementById('barberDate').value
-          };
-
-          barberBookings.unshift(newBooking);
+            date: document.getElementById('barberDate').value,
+            status: '검토중',
+            comments: []
+          });
           localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
           alert('이발소 예약이 완료되었습니다.');
-          renderBarberList();
+          renderBarberPage();
         });
 
+        bindCommonEvents(STORAGE_KEYS.BARBER, renderBarberPage);
+      }
+
+      /* 4. 건의사항 (전체 열람) */
+      function openSuggestionPage() {
+        document.getElementById('detailTitle').textContent = '건의사항';
+        renderSuggestionPage();
         showScreen(detailScreen);
       }
 
-      function renderBarberList() {
-        const list = document.getElementById('barberList');
-        const myBookings = barberBookings.filter(b => b.milNumber === currentUser.milNumber);
-
-        if (myBookings.length === 0) {
-          list.innerHTML = `<p style="font-size:12px; color:#888;">예약 내역이 없습니다.</p>`;
-          return;
-        }
-
-        list.innerHTML = myBookings.map(b => `
-          <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-            📅 <strong>${b.date}</strong> - 예약완료
-          </div>
-        `).join('');
-      }
-
-      function openSuggestionPage() {
-        document.getElementById('detailTitle').textContent = '건의사항';
+      function renderSuggestionPage() {
+        suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
         const detailContent = document.getElementById('detailContent');
 
-        detailContent.innerHTML = `
-          <form id="suggestionForm" style="display:flex; flex-direction:column; gap:10px;">
+        let html = `
+          <form id="suggestionForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
             <input type="text" id="suggestionTitle" placeholder="제목" style="padding:8px;" required />
             <textarea id="suggestionContent" placeholder="건의할 내용을 입력해 주세요" style="height:80px; padding:8px;" required></textarea>
             <button type="submit" class="primary-btn">건의하기</button>
           </form>
           <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
           <h3>등록된 건의사항 목록</h3>
-          <div id="suggestionList"></div>
+          <div id="suggestionList">
         `;
 
-        renderSuggestionList();
+        if (suggestions.length === 0) {
+          html += `<p style="font-size:12px; color:#888;">등록된 건의사항이 없습니다.</p>`;
+        } else {
+          suggestions.forEach(s => {
+            const status = s.status || '검토중';
+            html += `
+              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h4 style="margin:0;">${s.title}</h4>
+                  ${getStatusBadgeHTML(status)}
+                </div>
+                <p style="font-size:12px; color:#666; margin:4px 0 8px 0;">작성자: ${s.authorName} | ${s.date}</p>
+                <p style="font-size:13px; color:#333;">${s.content}</p>
+                ${isManager() ? `
+                  <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                    <span style="font-size:11px; font-weight:bold; color:#555;">상태 변경:</span>
+                    <button class="change-status-btn" data-post-id="${s.id}" data-status="조치완료" style="padding:3px 6px; font-size:10px; background-color:#28a745; color:white;">조치완료</button>
+                    <button class="change-status-btn" data-post-id="${s.id}" data-status="재검토" style="padding:3px 6px; font-size:10px; background-color:#dc3545; color:white;">재검토</button>
+                    <button class="change-status-btn" data-post-id="${s.id}" data-status="검토중" style="padding:3px 6px; font-size:10px; background-color:#6c757d; color:white;">검토중</button>
+                  </div>
+                ` : ''}
+                ${renderCommentsSection(s.id, s.comments, isManager() || currentUser.name === s.authorName)}
+              </div>
+            `;
+          });
+        }
+
+        html += `</div>`;
+        detailContent.innerHTML = html;
 
         document.getElementById('suggestionForm').addEventListener('submit', (e) => {
           e.preventDefault();
-          const newSugg = {
+          suggestions.unshift({
             id: Date.now(),
             title: document.getElementById('suggestionTitle').value.trim(),
             content: document.getElementById('suggestionContent').value.trim(),
             authorName: currentUser.name,
-            date: getTodayString()
-          };
-
-          suggestions.unshift(newSugg);
+            date: getTodayString(),
+            status: '검토중',
+            comments: []
+          });
           localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(suggestions));
           alert('건의사항이 등록되었습니다.');
-          renderSuggestionList();
+          renderSuggestionPage();
         });
 
-        showScreen(detailScreen);
+        bindCommonEvents(STORAGE_KEYS.SUGGESTIONS, renderSuggestionPage);
       }
 
-      function renderSuggestionList() {
-        const list = document.getElementById('suggestionList');
-        if (suggestions.length === 0) {
-          list.innerHTML = `<p style="font-size:12px; color:#888;">등록된 건의사항이 없습니다.</p>`;
-          return;
-        }
-
-        list.innerHTML = suggestions.map(s => `
-          <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-            <h4 style="margin:0 0 4px 0;">${s.title}</h4>
-            <p style="font-size:12px; color:#666; margin:0 0 6px 0;">작성자: ${s.authorName} | ${s.date}</p>
-            <p style="font-size:13px; margin:0;">${s.content}</p>
-          </div>
-        `).join('');
-      }
-
+      /* 5. 공지사항 (전체 열람) */
       function openNoticePage() {
         document.getElementById('detailTitle').textContent = '공지사항';
-        const detailContent = document.getElementById('detailContent');
-
-        if (notices.length === 0) {
-          detailContent.innerHTML = `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
-        } else {
-          detailContent.innerHTML = notices.map(n => `
-            <div style="border:1px solid #ddd; padding:12px; border-radius:6px; margin-bottom:10px; background:#fff;">
-              <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
-              <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
-              <div style="font-size:13px; color:#333;">${n.content}</div>
-            </div>
-          `).join('');
-        }
-
+        renderNoticePage();
         showScreen(detailScreen);
       }
 
+      function renderNoticePage() {
+        notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [];
+        const detailContent = document.getElementById('detailContent');
+
+        let html = '';
+        if (isManager()) {
+          html += `
+            <div style="margin-bottom: 20px;">
+              <button id="writeNoticeBtn" class="primary-btn" style="width:100%; margin-bottom:15px;">📢 신규 공지사항 등록</button>
+              <div id="noticeWriteForm" class="hidden" style="background:#f5f5f5; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <input type="text" id="noticeTitle" placeholder="공지 제목 입력" style="width:100%; padding:8px; margin-bottom:10px; box-sizing:border-box;" required />
+                <textarea id="noticeContent" placeholder="공지 내용 입력..." style="width:100%; height:100px; padding:8px; margin-bottom:10px; box-sizing:border-box;" required></textarea>
+                <button id="submitNoticeBtn" class="primary-btn" style="width:100%;">등록</button>
+              </div>
+            </div>
+          `;
+        }
+
+        if (notices.length === 0) {
+          html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
+        } else {
+          notices.forEach(n => {
+            html += `
+              <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
+                <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
+                <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
+                <div style="font-size:13px; color:#333; margin-bottom:10px;">${n.content}</div>
+                ${renderCommentsSection(n.id, n.comments, isManager())}
+              </div>
+            `;
+          });
+        }
+
+        detailContent.innerHTML = html;
+
+        document.getElementById('writeNoticeBtn')?.addEventListener('click', () => {
+          document.getElementById('noticeWriteForm').classList.toggle('hidden');
+        });
+
+        document.getElementById('submitNoticeBtn')?.addEventListener('click', () => {
+          const title = document.getElementById('noticeTitle').value.trim();
+          const content = document.getElementById('noticeContent').value.trim();
+          if (!title || !content) return alert('제목과 내용을 입력해 주세요.');
+
+          notices.unshift({
+            id: Date.now(),
+            title,
+            content,
+            date: getTodayString(),
+            comments: []
+          });
+          localStorage.setItem(STORAGE_KEYS.NOTICES, JSON.stringify(notices));
+          renderNoticePage();
+        });
+
+        bindCommonEvents(STORAGE_KEYS.NOTICES, renderNoticePage);
+      }
+
+      /* 관리자 DB 제어 */
       function openAdminPage() {
         if (!currentUser || currentUser.role !== 'admin') {
-          alert('관리자만 접근 가능한 페이지입니다.');
+          alert('관리자만 접근 가능합니다.');
           showScreen(homeScreen);
           return;
         }
@@ -1043,16 +1092,11 @@
         const soldierDatesGroup = document.getElementById('soldierDatesGroup');
 
         dbRoleSelect.addEventListener('change', () => {
-          if (dbRoleSelect.value === 'user') {
-            soldierDatesGroup.style.display = 'flex';
-          } else {
-            soldierDatesGroup.style.display = 'none';
-          }
+          soldierDatesGroup.style.display = dbRoleSelect.value === 'user' ? 'flex' : 'none';
         });
 
         document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
           e.preventDefault();
-
           const role = dbRoleSelect.value;
           const milNumber = document.getElementById('dbMilNumber').value.trim();
           const name = document.getElementById('dbName').value.trim();
@@ -1064,7 +1108,6 @@
           }
 
           const newUser = { milNumber, name, unitCode, role, password: '' };
-
           if (role === 'user') {
             newUser.enlistDate = document.getElementById('dbEnlistDate').value;
             newUser.dischargeDate = document.getElementById('dbDischargeDate').value;
@@ -1072,10 +1115,9 @@
 
           users.push(newUser);
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-          alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.\n(해당 사용자가 직접 회원가입을 거쳐 비밀번호를 설정할 수 있습니다.)`);
+          alert(`${name} 님이 DB에 등록되었습니다.`);
 
           document.getElementById('adminAddUserForm').reset();
-          soldierDatesGroup.style.display = 'flex';
           renderAdminUserList();
         });
 
@@ -1100,64 +1142,24 @@
               <div>
                 <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span> ${statusBadge}<br/>
                 <span style="color:#666;">부대코드: ${u.unitCode}</span>
-                ${u.role === 'user' && u.enlistDate ? `<br/><span style="color:#888;">입대: ${u.enlistDate} / 전역: ${u.dischargeDate || '-'}</span>` : ''}
               </div>
               <div style="display:flex; gap:4px;">
-                <button class="edit-user-btn ghost-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px;">수정</button>
                 <button class="delete-user-btn primary-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px; background-color:#dc3545;">삭제</button>
               </div>
             </div>
           `;
         }).join('');
 
-        document.querySelectorAll('.edit-user-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            const milNumber = e.target.dataset.mil;
-            editUserDB(milNumber);
-          });
-        });
-
         document.querySelectorAll('.delete-user-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const milNumber = e.target.dataset.mil;
-            deleteUserDB(milNumber);
+            if (confirm(`군번 [${milNumber}] 인원을 삭제하시겠습니까?`)) {
+              users = users.filter(u => u.milNumber !== milNumber);
+              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+              renderAdminUserList();
+            }
           });
         });
-      }
-
-      function editUserDB(milNumber) {
-        const targetUser = users.find(u => u.milNumber === milNumber);
-        if (!targetUser) return;
-
-        const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
-        if (newName === null) return;
-
-        const newUnitCode = prompt('수정할 부대 코드를 입력하세요:', targetUser.unitCode);
-        if (newUnitCode === null) return;
-
-        targetUser.name = newName.trim() || targetUser.name;
-        targetUser.unitCode = newUnitCode.trim() || targetUser.unitCode;
-
-        if (targetUser.role === 'user') {
-          const newEnlist = prompt('수정할 입대일을 입력하세요 (YYYY-MM-DD):', targetUser.enlistDate || '');
-          if (newEnlist !== null) targetUser.enlistDate = newEnlist;
-
-          const newDischarge = prompt('수정할 전역예정일을 입력하세요 (YYYY-MM-DD):', targetUser.dischargeDate || '');
-          if (newDischarge !== null) targetUser.dischargeDate = newDischarge;
-        }
-
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-        alert(`${targetUser.milNumber} 번 인원의 정보가 수정되었습니다.`);
-        renderAdminUserList();
-      }
-
-      function deleteUserDB(milNumber) {
-        if (confirm(`군번 [${milNumber}] 인원을 정말 삭제하시겠습니까?`)) {
-          users = users.filter(u => u.milNumber !== milNumber);
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-          alert('인원이 DB에서 삭제되었습니다.');
-          renderAdminUserList();
-        }
       }
 
       updateUI();
