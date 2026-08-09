@@ -2,10 +2,14 @@
 const STORAGE_KEYS = {
   USERS: 'app_users',
   SESSION: 'app_session',
-  LETTERS: 'app_letters'
+  LETTERS: 'app_letters',
+  LEAVES: 'app_leaves',
+  BARBER: 'app_barber',
+  SUGGESTIONS: 'app_suggestions',
+  NOTICES: 'app_notices'
 };
 
-// 기본 관리자 및 테스트 계정 초기화 함수
+// 기본 데이터 및 테스트 계정 초기화
 function initDefaultData() {
   let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
   
@@ -27,35 +31,25 @@ function initDefaultData() {
     password: 'commander1234'
   };
 
-  if (!savedUsers.some(u => u.milNumber === 'admin')) {
-    savedUsers.push(defaultAdmin);
-  }
-  if (!savedUsers.some(u => u.milNumber === 'commander')) {
-    savedUsers.push(defaultCommander);
-  }
+  if (!savedUsers.some(u => u.milNumber === 'admin')) savedUsers.push(defaultAdmin);
+  if (!savedUsers.some(u => u.milNumber === 'commander')) savedUsers.push(defaultCommander);
 
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(savedUsers));
   return savedUsers;
 }
 
-// 데이터 로드
 let users = initDefaultData();
 let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
-let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [
-  {
-    id: 1,
-    title: '부대 생활 관련 문의드립니다.',
-    content: '건의사항 및 소통을 위한 마음의 편지 내용입니다.',
-    authorMilNumber: '21-123456',
-    authorName: '홍길동',
-    createdAt: '2026-08-08',
-    comments: [
-      { id: 101, author: '지휘관', role: 'commander', content: '확인하였습니다. 조치 예정입니다.', createdAt: '2026-08-08' }
-    ]
-  }
+
+// 각 기능별 저장 데이터 로드
+let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [];
+let leaves = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
+let barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
+let suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
+let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
+  { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
 ];
 
-// DOM 요소 획득 및 이벤트 연결
 document.addEventListener('DOMContentLoaded', () => {
   const authScreen = document.getElementById('authScreen');
   const homeScreen = document.getElementById('homeScreen');
@@ -68,9 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const backToHomeBtn = document.getElementById('backToHomeBtn');
   const adminCard = document.getElementById('adminCard');
 
-  // 💡 [화면 전환 함수] style.display로 확실하게 제어 (겹침 방지)
+  // 화면 전환 제어 (겹침 방지 style.display 제어)
   function showScreen(targetScreen) {
-    // 모든 화면 숨김
     [authScreen, homeScreen, detailScreen].forEach(s => {
       if (s) {
         s.style.display = 'none';
@@ -78,14 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // 지정된 화면만 노출
     if (targetScreen) {
       targetScreen.style.display = 'block';
       targetScreen.classList.add('active');
     }
   }
 
-  // 앱 UI 로그인 상태 업데이트
+  // 앱 UI 업데이트
   function updateUI() {
     if (currentUser) {
       let roleName = '용사';
@@ -105,22 +97,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 로그인 상태이면 메인 화면만 보이기
       showScreen(homeScreen);
     } else {
       if (logoutBtn) logoutBtn.classList.add('hidden');
-      
-      // 로그아웃 상태이면 로그인 화면만 보이기
       showScreen(authScreen);
     }
   }
 
-  // 회원가입 창 토글
   showRegisterBtn?.addEventListener('click', () => {
     registerCard.classList.toggle('hidden');
   });
 
-  // 회원가입 처리
+  // 회원가입
   registerForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('milNumber').value.trim();
@@ -138,59 +126,124 @@ document.addEventListener('DOMContentLoaded', () => {
     const newUser = { milNumber, name, birthDate, unitCode, role, password };
     users.push(newUser);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    alert('회원가입이 완료되었습니다. 로그인해주세요.');
+    alert('회원가입이 완료되었습니다.');
     registerCard.classList.add('hidden');
     registerForm.reset();
   });
 
-  // 로그인 처리
+  // 로그인
   loginForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('loginMilNumber').value.trim();
     const password = document.getElementById('loginPassword').value;
 
     users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-
     const user = users.find(u => u.milNumber === milNumber && u.password === password);
+    
     if (user) {
       currentUser = user;
       localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
-      updateUI(); // UI 및 화면 전환 업데이트
+      updateUI();
     } else {
       alert('군번(아이디) 또는 비밀번호가 올바르지 않습니다.');
     }
   });
 
-  // 로그아웃 처리
+  // 로그아웃
   logoutBtn?.addEventListener('click', () => {
     currentUser = null;
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     updateUI();
   });
 
-  // 메인으로 돌아가기
+  // 메인 이동
   backToHomeBtn?.addEventListener('click', () => {
     showScreen(homeScreen);
   });
 
-  // 메뉴 버튼 이벤트
+  // 메뉴 라우팅
   document.querySelectorAll('.menu-card').forEach(btn => {
     btn.addEventListener('click', () => {
       const menu = btn.dataset.menu;
-      if (menu === 'letter') {
-        openLetterBoard();
-      } else {
-        document.getElementById('detailTitle').textContent = btn.querySelector('h3').textContent;
-        document.getElementById('detailContent').innerHTML = `<p style="padding:20px; text-align:center;">준비 중인 기능입니다.</p>`;
-        showScreen(detailScreen);
-      }
+      if (menu === 'leave') openLeavePage();
+      else if (menu === 'letter') openLetterBoard();
+      else if (menu === 'barber') openBarberPage();
+      else if (menu === 'suggestion') openSuggestionPage();
+      else if (menu === 'notice') openNoticePage();
+      else if (menu === 'admin') openAdminPage();
     });
   });
 
   // ==========================================
-  // 💬 대장과의 대화 (마음의 편지)
+  // 1. 📅 출타신청
   // ==========================================
+  function openLeavePage() {
+    document.getElementById('detailTitle').textContent = '방공대 출타신청';
+    const detailContent = document.getElementById('detailContent');
 
+    detailContent.innerHTML = `
+      <form id="leaveForm" style="display:flex; flex-direction:column; gap:10px;">
+        <label>출타 유형
+          <select id="leaveType" style="width:100%; padding:8px;" required>
+            <option value="휴가">휴가</option>
+            <option value="외박">외박</option>
+            <option value="외출">외출</option>
+          </select>
+        </label>
+        <label>시작일 <input type="date" id="leaveStart" style="width:100%; padding:8px;" required /></label>
+        <label>종료일 <input type="date" id="leaveEnd" style="width:100%; padding:8px;" required /></label>
+        <label>사유 <input type="text" id="leaveReason" placeholder="출타 사유 입력" style="width:100%; padding:8px;" required /></label>
+        <button type="submit" class="primary-btn">신청하기</button>
+      </form>
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+      <h3>내 신청 현황</h3>
+      <div id="leaveList"></div>
+    `;
+
+    renderLeaveList();
+
+    document.getElementById('leaveForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newLeave = {
+        id: Date.now(),
+        milNumber: currentUser.milNumber,
+        name: currentUser.name,
+        type: document.getElementById('leaveType').value,
+        start: document.getElementById('leaveStart').value,
+        end: document.getElementById('leaveEnd').value,
+        reason: document.getElementById('leaveReason').value,
+        status: '대기중'
+      };
+      leaves.unshift(newLeave);
+      localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
+      alert('출타 신청이 완료되었습니다.');
+      renderLeaveList();
+    });
+
+    showScreen(detailScreen);
+  }
+
+  function renderLeaveList() {
+    const leaveList = document.getElementById('leaveList');
+    const myLeaves = leaves.filter(l => l.milNumber === currentUser.milNumber);
+
+    if (myLeaves.length === 0) {
+      leaveList.innerHTML = `<p style="font-size:12px; color:#888;">신청 내역이 없습니다.</p>`;
+      return;
+    }
+
+    leaveList.innerHTML = myLeaves.map(l => `
+      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
+        <strong>[${l.type}]</strong> ${l.start} ~ ${l.end}<br/>
+        <span style="font-size:12px; color:#555;">사유: ${l.reason}</span><br/>
+        <span style="font-size:12px; color:#007bff;">상태: ${l.status}</span>
+      </div>
+    `).join('');
+  }
+
+  // ==========================================
+  // 2. 💬 대장과의 대화 (마음의 편지)
+  // ==========================================
   function openLetterBoard() {
     document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
     renderLetterList();
@@ -216,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
-        // 열람 권한: 작성 본인 또는 지휘관(commander)만 가능
+        // 열람 권한: 본인 또는 지휘관(commander)만 가능 (관리자 admin 및 타 유저 제외)
         const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
 
@@ -333,6 +386,168 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 앱 실행 시 초기 화면 정리
+  // ==========================================
+  // 3. ✂️ 이발소 신청
+  // ==========================================
+  function openBarberPage() {
+    document.getElementById('detailTitle').textContent = '이발소 예약 신청';
+    const detailContent = document.getElementById('detailContent');
+
+    detailContent.innerHTML = `
+      <form id="barberForm" style="display:flex; flex-direction:column; gap:10px;">
+        <label>예약 희망일 <input type="date" id="barberDate" style="width:100%; padding:8px;" required /></label>
+        <label>희망 시간
+          <select id="barberTime" style="width:100%; padding:8px;" required>
+            <option value="17:30">17:30</option>
+            <option value="18:00">18:00</option>
+            <option value="18:30">18:30</option>
+            <option value="19:00">19:00</option>
+            <option value="19:30">19:30</option>
+          </select>
+        </label>
+        <button type="submit" class="primary-btn">예약하기</button>
+      </form>
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+      <h3>내 예약 내역</h3>
+      <div id="barberList"></div>
+    `;
+
+    renderBarberList();
+
+    document.getElementById('barberForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newBooking = {
+        id: Date.now(),
+        milNumber: currentUser.milNumber,
+        name: currentUser.name,
+        date: document.getElementById('barberDate').value,
+        time: document.getElementById('barberTime').value
+      };
+
+      barberBookings.unshift(newBooking);
+      localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
+      alert('이발소 예약이 완료되었습니다.');
+      renderBarberList();
+    });
+
+    showScreen(detailScreen);
+  }
+
+  function renderBarberList() {
+    const list = document.getElementById('barberList');
+    const myBookings = barberBookings.filter(b => b.milNumber === currentUser.milNumber);
+
+    if (myBookings.length === 0) {
+      list.innerHTML = `<p style="font-size:12px; color:#888;">예약 내역이 없습니다.</p>`;
+      return;
+    }
+
+    list.innerHTML = myBookings.map(b => `
+      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
+        📅 <strong>${b.date}</strong> (${b.time}) - 예약완료
+      </div>
+    `).join('');
+  }
+
+  // ==========================================
+  // 4. 📝 건의사항
+  // ==========================================
+  function openSuggestionPage() {
+    document.getElementById('detailTitle').textContent = '건의사항';
+    const detailContent = document.getElementById('detailContent');
+
+    detailContent.innerHTML = `
+      <form id="suggestionForm" style="display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="suggestionTitle" placeholder="제목" style="padding:8px;" required />
+        <textarea id="suggestionContent" placeholder="건의할 내용을 입력해 주세요" style="height:80px; padding:8px;" required></textarea>
+        <button type="submit" class="primary-btn">건의하기</button>
+      </form>
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+      <h3>등록된 건의사항 목록</h3>
+      <div id="suggestionList"></div>
+    `;
+
+    renderSuggestionList();
+
+    document.getElementById('suggestionForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newSugg = {
+        id: Date.now(),
+        title: document.getElementById('suggestionTitle').value.trim(),
+        content: document.getElementById('suggestionContent').value.trim(),
+        authorName: currentUser.name,
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      suggestions.unshift(newSugg);
+      localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(suggestions));
+      alert('건의사항이 등록되었습니다.');
+      renderSuggestionList();
+    });
+
+    showScreen(detailScreen);
+  }
+
+  function renderSuggestionList() {
+    const list = document.getElementById('suggestionList');
+    if (suggestions.length === 0) {
+      list.innerHTML = `<p style="font-size:12px; color:#888;">등록된 건의사항이 없습니다.</p>`;
+      return;
+    }
+
+    list.innerHTML = suggestions.map(s => `
+      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
+        <h4 style="margin:0 0 4px 0;">${s.title}</h4>
+        <p style="font-size:12px; color:#666; margin:0 0 6px 0;">작성자: ${s.authorName} | ${s.date}</p>
+        <p style="font-size:13px; margin:0;">${s.content}</p>
+      </div>
+    `).join('');
+  }
+
+  // ==========================================
+  // 5. 📢 공지사항
+  // ==========================================
+  function openNoticePage() {
+    document.getElementById('detailTitle').textContent = '공지사항';
+    const detailContent = document.getElementById('detailContent');
+
+    if (notices.length === 0) {
+      detailContent.innerHTML = `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
+    } else {
+      detailContent.innerHTML = notices.map(n => `
+        <div style="border:1px solid #ddd; padding:12px; border-radius:6px; margin-bottom:10px; background:#fff;">
+          <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
+          <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
+          <div style="font-size:13px; color:#333;">${n.content}</div>
+        </div>
+      `).join('');
+    }
+
+    showScreen(detailScreen);
+  }
+
+  // ==========================================
+  // 6. 🗂️ 관리자 DB
+  // ==========================================
+  function openAdminPage() {
+    document.getElementById('detailTitle').textContent = '관리자 DB';
+    const detailContent = document.getElementById('detailContent');
+
+    detailContent.innerHTML = `
+      <h3>전체 회원 목록 (${users.length}명)</h3>
+      <div style="max-height:300px; overflow-y:auto;">
+        ${users.map(u => `
+          <div style="border-bottom:1px solid #eee; padding:8px 0; font-size:12px;">
+            <strong>${u.name}</strong> (${u.milNumber}) - ${u.role === 'commander' ? '지휘관' : u.role === 'admin' ? '관리자' : '용사'}<br/>
+            <span style="color:#777;">소속: ${u.unitCode}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    showScreen(detailScreen);
+  }
+
+  // 초기 상태 로드
   updateUI();
 });
