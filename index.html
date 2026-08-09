@@ -235,6 +235,28 @@
       line-height: 1.2 !important;
     }
 
+    /* 분석 분석 태그 스타일 */
+    .analysis-badge {
+      font-weight: bold;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .analysis-anxiety {
+      background-color: #ff2a2a;
+      color: #ffffff;
+    }
+    .analysis-check {
+      background-color: #ff9800;
+      color: #ffffff;
+    }
+    .analysis-etc {
+      background-color: #17a2b8;
+      color: #ffffff;
+    }
+
     footer {
       margin-top: auto;
       padding-top: 16px;
@@ -331,7 +353,7 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <button id="resetDataBtn" class="ghost-btn" style="margin-top:10px; font-size:11px; color:#888; border-color:#eee;">⚠️ N 뱃지 오류 시 저장 데이터 리셋</button>
+      <button id="resetDataBtn" class="ghost-btn" style="margin-top:10px; font-size:11px; color:#888; border-color:#eee;">⚠️ 데이터 초기화</button>
     </footer>
   </div>
 
@@ -422,6 +444,37 @@
       }
     }
 
+    // --- 🔍 키워드 기반 심리 분석 알고리즘 (지휘관 전용) ---
+    function analyzeLetterContent(text) {
+      if (!text) return null;
+
+      // 분석용 키워드 사전
+      const anxietyKeywords = ['죽고싶', '자살', '우울', '잠이 안', '불면', '힘들', '포기', '괴롭', '정신적'];
+      const checkKeywords = ['폭행', '욕설', '부조리', '가혹행위', '구타', '괴롭힘', '탈영', '신고', '갈취'];
+      const etcKeywords = ['고충', '상담', '건의', '어려움', '아픕', '병가', '병원'];
+
+      let detectedAnxiety = [];
+      let detectedCheck = [];
+      let detectedEtc = [];
+
+      anxietyKeywords.forEach(k => { if (text.includes(k)) detectedAnxiety.push(k); });
+      checkKeywords.forEach(k => { if (text.includes(k)) detectedCheck.push(k); });
+      etcKeywords.forEach(k => { if (text.includes(k)) detectedEtc.push(k); });
+
+      let tags = [];
+      if (detectedAnxiety.length > 0) {
+        tags.push({ type: 'anxiety', label: '⚠️ 심리불안', keywords: detectedAnxiety });
+      }
+      if (detectedCheck.length > 0) {
+        tags.push({ type: 'check', label: '🔍 확인필요', keywords: detectedCheck });
+      }
+      if (detectedEtc.length > 0 && tags.length === 0) {
+        tags.push({ type: 'etc', label: '💡 기타고충', keywords: detectedEtc });
+      }
+
+      return tags.length > 0 ? tags : null;
+    }
+
     // --- 댓글 및 새글 알림 관리 ---
     function getReadCommentIds() {
       if (!currentUser) return [];
@@ -457,7 +510,6 @@
       localStorage.setItem(STORAGE_KEYS.COMMENT_READS, JSON.stringify(readsMap));
     }
 
-    // 홈 화면 버튼 알림 뱃지 업데이트
     function updateMenuBadges() {
       if (!currentUser) return;
 
@@ -599,7 +651,7 @@
             adminCard.classList.toggle('hidden', currentUser.role !== 'admin');
           }
 
-          updateMenuBadges(); // 메인 메뉴 뱃지 갱신
+          updateMenuBadges();
           showScreen(homeScreen);
         } else {
           if (logoutBtn) logoutBtn.classList.add('hidden');
@@ -882,7 +934,7 @@
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      /* 2. 대장과의 대화 */
+      /* 2. 대장과의 대화 (지휘관 분석 태그 기능 추가) */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
@@ -915,12 +967,38 @@
             const authorDisplay = isMyPost ? '본인' : '익명 (***)';
             const status = post.status || '검토중';
 
+            // 🧠 [지휘관 전용] 본문 및 제목 심리 분석 수행
+            let analysisHTML = '';
+            if (isCommander) {
+              const fullText = (post.title || '') + ' ' + (post.content || '');
+              const analysisResults = analyzeLetterContent(fullText);
+
+              if (analysisResults) {
+                analysisHTML = '<div style="margin-top:6px;">';
+                analysisResults.forEach(res => {
+                  let badgeClass = 'analysis-etc';
+                  if (res.type === 'anxiety') badgeClass = 'analysis-anxiety';
+                  if (res.type === 'check') badgeClass = 'analysis-check';
+
+                  analysisHTML += `<span class="analysis-badge ${badgeClass}">${res.label}</span>`;
+                });
+                
+                // 감지된 키워드 힌트 제공
+                const allKeywords = analysisResults.flatMap(r => r.keywords).join(', ');
+                analysisHTML += `<span style="font-size:10px; color:#d9534f; margin-left:4px;">(감지: ${allKeywords})</span>`;
+                analysisHTML += '</div>';
+              }
+            }
+
             html += `
               <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
                   <div>${getStatusBadgeHTML(status)}</div>
                 </div>
+                
+                ${analysisHTML /* 오직 지휘관 화면에만 분석 태그 출력 */}
+
                 <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
                 
                 ${canAccess ? `
@@ -1141,7 +1219,7 @@
         if (notices.length === 0) {
           html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
         } else {
-          // 🔥 [핵심] 용사(user)는 댓글 작성 불가능
+          // 용사(user)는 공지사항 댓글 작성 불가
           const canReplyNotice = currentUser && currentUser.role !== 'user'; 
 
           notices.forEach(n => {
