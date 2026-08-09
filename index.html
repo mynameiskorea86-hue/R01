@@ -235,7 +235,7 @@
       line-height: 1.2 !important;
     }
 
-    /* 분석 분석 태그 스타일 */
+    /* 분석 태그 스타일 */
     .analysis-badge {
       font-weight: bold;
       font-size: 11px;
@@ -444,22 +444,44 @@
       }
     }
 
-    // --- 🔍 키워드 기반 심리 분석 알고리즘 (지휘관 전용) ---
+    // --- 🔍 키워드 기반 심리 분석 알고리즘 (지휘관 전용 - 고도화 완료) ---
     function analyzeLetterContent(text) {
       if (!text) return null;
 
-      // 분석용 키워드 사전
-      const anxietyKeywords = ['죽고싶', '자살', '우울', '잠이 안', '불면', '힘들', '포기', '괴롭', '정신적'];
-      const checkKeywords = ['폭행', '욕설', '부조리', '가혹행위', '구타', '괴롭힘', '탈영', '신고', '갈취'];
-      const etcKeywords = ['고충', '상담', '건의', '어려움', '아픕', '병가', '병원'];
+      // 1. 띄어쓰기 무시 정규화 (공백 제거)
+      const normalizedText = text.replace(/\s+/g, '');
+
+      // 2. 촘촘한 키워드 사전
+      const anxietyKeywords = [
+        '죽고싶', '죽고', '자살', '우울', '불면', '불안', '숨막', '숨이막', 
+        '괴롭', '정신적', '답답', '살기싫', '포기', '버티기', '공황', '잠이안', '잠도안', '잠을못', '힘들'
+      ];
+      const checkKeywords = [
+        '폭행', '욕설', '부조리', '가혹행위', '구타', '괴롭힘', '탈영', 
+        '신고', '갈취', '따돌림', '왕따', '협박', '폭언', '갈구'
+      ];
+      const etcKeywords = [
+        '고충', '상담', '건의', '어려움', '아픕', '병가', '병원', '진료', '외진'
+      ];
 
       let detectedAnxiety = [];
       let detectedCheck = [];
       let detectedEtc = [];
 
-      anxietyKeywords.forEach(k => { if (text.includes(k)) detectedAnxiety.push(k); });
-      checkKeywords.forEach(k => { if (text.includes(k)) detectedCheck.push(k); });
-      etcKeywords.forEach(k => { if (text.includes(k)) detectedEtc.push(k); });
+      anxietyKeywords.forEach(k => { 
+        if (text.includes(k) || normalizedText.includes(k)) detectedAnxiety.push(k); 
+      });
+      checkKeywords.forEach(k => { 
+        if (text.includes(k) || normalizedText.includes(k)) detectedCheck.push(k); 
+      });
+      etcKeywords.forEach(k => { 
+        if (text.includes(k) || normalizedText.includes(k)) detectedEtc.push(k); 
+      });
+
+      // 중복 키워드 제거
+      detectedAnxiety = [...new Set(detectedAnxiety)];
+      detectedCheck = [...new Set(detectedCheck)];
+      detectedEtc = [...new Set(detectedEtc)];
 
       let tags = [];
       if (detectedAnxiety.length > 0) {
@@ -934,7 +956,7 @@
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      /* 2. 대장과의 대화 (지휘관 분석 태그 기능 추가) */
+      /* 2. 대장과의 대화 */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
@@ -983,7 +1005,6 @@
                   analysisHTML += `<span class="analysis-badge ${badgeClass}">${res.label}</span>`;
                 });
                 
-                // 감지된 키워드 힌트 제공
                 const allKeywords = analysisResults.flatMap(r => r.keywords).join(', ');
                 analysisHTML += `<span style="font-size:10px; color:#d9534f; margin-left:4px;">(감지: ${allKeywords})</span>`;
                 analysisHTML += '</div>';
@@ -997,7 +1018,7 @@
                   <div>${getStatusBadgeHTML(status)}</div>
                 </div>
                 
-                ${analysisHTML /* 오직 지휘관 화면에만 분석 태그 출력 */}
+                ${analysisHTML}
 
                 <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
                 
@@ -1191,7 +1212,7 @@
         bindCommonEvents(STORAGE_KEYS.SUGGESTIONS, renderSuggestionPage);
       }
 
-      /* 5. 공지사항 (용사 댓글 금지 적용) */
+      /* 5. 공지사항 */
       function openNoticePage() {
         document.getElementById('detailTitle').textContent = '공지사항';
         renderNoticePage();
@@ -1219,7 +1240,6 @@
         if (notices.length === 0) {
           html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
         } else {
-          // 용사(user)는 공지사항 댓글 작성 불가
           const canReplyNotice = currentUser && currentUser.role !== 'user'; 
 
           notices.forEach(n => {
