@@ -533,10 +533,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 6. 🗂️ 관리자 DB (신규 인원 추가 / 목록 관리)
+  // 6. 🗂️ 관리자 DB (관리자 전용 CRUD 입력, 수정, 삭제)
   // ==========================================
   function openAdminPage() {
-    document.getElementById('detailTitle').textContent = '관리자 DB';
+    // 🔒 권한 검증: 관리자(admin)가 아니면 접근 차단
+    if (!currentUser || currentUser.role !== 'admin') {
+      alert('관리자만 접근 가능한 페이지입니다.');
+      showScreen(homeScreen);
+      return;
+    }
+
+    document.getElementById('detailTitle').textContent = '관리자 DB 제어';
     const detailContent = document.getElementById('detailContent');
 
     detailContent.innerHTML = `
@@ -561,7 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <input type="text" id="dbUnitCode" placeholder="예: 5기갑 방공대" style="width:100%; padding:6px; box-sizing:border-box;" required />
           </label>
           
-          <!-- 용사 선택 시에만 노출되는 입대일/전역예정일 -->
           <div id="soldierDatesGroup" style="display:flex; flex-direction:column; gap:8px;">
             <label style="font-size:12px;">입대일
               <input type="date" id="dbEnlistDate" style="width:100%; padding:6px; box-sizing:border-box;" />
@@ -581,13 +587,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
       <h3>전체 등록 인원 목록 (<span id="userCount">${users.length}</span>명)</h3>
-      <div id="adminUserList" style="max-height:250px; overflow-y:auto;"></div>
+      <div id="adminUserList" style="max-height:300px; overflow-y:auto;"></div>
     `;
 
     const dbRoleSelect = document.getElementById('dbRole');
     const soldierDatesGroup = document.getElementById('soldierDatesGroup');
 
-    // 직책 선택 변경 시 이벤트 (용사일 때만 날짜 입력 노출)
     dbRoleSelect.addEventListener('change', () => {
       if (dbRoleSelect.value === 'user') {
         soldierDatesGroup.style.display = 'flex';
@@ -596,7 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // DB 인원 등록 제출
     document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
       e.preventDefault();
 
@@ -613,7 +617,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const newUser = { milNumber, name, unitCode, role, password };
 
-      // 용사인 경우 입대일/전역예정일 추가
       if (role === 'user') {
         newUser.enlistDate = document.getElementById('dbEnlistDate').value;
         newUser.dischargeDate = document.getElementById('dbDischargeDate').value;
@@ -624,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.`);
 
       document.getElementById('adminAddUserForm').reset();
-      soldierDatesGroup.style.display = 'flex'; // 초기값 리셋
+      soldierDatesGroup.style.display = 'flex';
       renderAdminUserList();
     });
 
@@ -632,6 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen(detailScreen);
   }
 
+  // 관리자 DB 유저 목록 렌더링 (수정 / 삭제 기능 포함)
   function renderAdminUserList() {
     const listContainer = document.getElementById('adminUserList');
     document.getElementById('userCount').textContent = users.length;
@@ -643,13 +647,76 @@ document.addEventListener('DOMContentLoaded', () => {
       if (u.role === 'admin') roleLabel = '관리자';
 
       return `
-        <div style="border-bottom:1px solid #eee; padding:8px 0; font-size:12px;">
-          <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span><br/>
-          <span style="color:#666;">부대코드: ${u.unitCode}</span>
-          ${u.role === 'user' && u.enlistDate ? `<br/><span style="color:#888;">입대: ${u.enlistDate} / 전역예정: ${u.dischargeDate || '-'}</span>` : ''}
+        <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong>${u.name}</strong> (${u.milNumber}) - <span style="color:#007bff; font-weight:bold;">${roleLabel}</span><br/>
+            <span style="color:#666;">부대코드: ${u.unitCode}</span>
+            ${u.role === 'user' && u.enlistDate ? `<br/><span style="color:#888;">입대: ${u.enlistDate} / 전역: ${u.dischargeDate || '-'}</span>` : ''}
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="edit-user-btn ghost-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px;">수정</button>
+            ${u.milNumber !== 'admin' ? `<button class="delete-user-btn primary-btn" data-mil="${u.milNumber}" style="padding:4px 8px; font-size:11px; background-color:#dc3545;">삭제</button>` : ''}
+          </div>
         </div>
       `;
     }).join('');
+
+    // 수정 버튼 이벤트
+    document.querySelectorAll('.edit-user-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const milNumber = e.target.dataset.mil;
+        editUserDB(milNumber);
+      });
+    });
+
+    // 삭제 버튼 이벤트
+    document.querySelectorAll('.delete-user-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const milNumber = e.target.dataset.mil;
+        deleteUserDB(milNumber);
+      });
+    });
+  }
+
+  // DB 유저 수정 함수
+  function editUserDB(milNumber) {
+    const targetUser = users.find(u => u.milNumber === milNumber);
+    if (!targetUser) return;
+
+    const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
+    if (newName === null) return; // 취소 클릭 시
+
+    const newUnitCode = prompt('수정할 부대 코드를 입력하세요:', targetUser.unitCode);
+    if (newUnitCode === null) return;
+
+    const newPassword = prompt('수정할 비밀번호를 입력하세요:', targetUser.password);
+    if (newPassword === null) return;
+
+    targetUser.name = newName.trim() || targetUser.name;
+    targetUser.unitCode = newUnitCode.trim() || targetUser.unitCode;
+    targetUser.password = newPassword || targetUser.password;
+
+    if (targetUser.role === 'user') {
+      const newEnlist = prompt('수정할 입대일을 입력하세요 (YYYY-MM-DD):', targetUser.enlistDate || '');
+      if (newEnlist !== null) targetUser.enlistDate = newEnlist;
+
+      const newDischarge = prompt('수정할 전역예정일을 입력하세요 (YYYY-MM-DD):', targetUser.dischargeDate || '');
+      if (newDischarge !== null) targetUser.dischargeDate = newDischarge;
+    }
+
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    alert(`${targetUser.milNumber} 번 인원의 정보가 수정되었습니다.`);
+    renderAdminUserList();
+  }
+
+  // DB 유저 삭제 함수
+  function deleteUserDB(milNumber) {
+    if (confirm(`군번 [${milNumber}] 인원을 정말 삭제하시겠습니까?`)) {
+      users = users.filter(u => u.milNumber !== milNumber);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      alert('인원이 DB에서 삭제되었습니다.');
+      renderAdminUserList();
+    }
   }
 
   // 초기 상태 로드
