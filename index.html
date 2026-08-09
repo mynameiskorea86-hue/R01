@@ -220,7 +220,6 @@
       background-color: #f8d7da;
     }
 
-    /* N 뱃지 스타일 */
     .new-badge {
       background-color: #ff0000 !important;
       color: #ffffff !important;
@@ -235,7 +234,6 @@
       line-height: 1.2 !important;
     }
 
-    /* 마음의 편지 분석 태그 스타일 */
     .analysis-badge {
       font-weight: bold;
       font-size: 11px;
@@ -244,20 +242,10 @@
       display: inline-block;
       margin-right: 4px;
     }
-    .analysis-anxiety {
-      background-color: #ff2a2a;
-      color: #ffffff;
-    }
-    .analysis-check {
-      background-color: #ff9800;
-      color: #ffffff;
-    }
-    .analysis-etc {
-      background-color: #17a2b8;
-      color: #ffffff;
-    }
+    .analysis-anxiety { background-color: #ff2a2a; color: #ffffff; }
+    .analysis-check { background-color: #ff9800; color: #ffffff; }
+    .analysis-etc { background-color: #17a2b8; color: #ffffff; }
 
-    /* 건의사항 카테고리 태그 스타일 */
     .sug-category-badge {
       font-weight: bold;
       font-size: 11px;
@@ -266,20 +254,10 @@
       display: inline-block;
       margin-right: 4px;
     }
-    .sug-equipment {
-      background-color: #17a2b8;
-      color: #ffffff;
-    }
-    .sug-facility {
-      background-color: #fd7e14;
-      color: #ffffff;
-    }
-    .sug-etc {
-      background-color: #6c757d;
-      color: #ffffff;
-    }
+    .sug-equipment { background-color: #17a2b8; color: #ffffff; }
+    .sug-facility { background-color: #fd7e14; color: #ffffff; }
+    .sug-etc { background-color: #6c757d; color: #ffffff; }
 
-    /* 내용 2줄 제한 스타일 */
     .clamp-2-lines {
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -302,7 +280,6 @@
       <h1>방공대 커뮤니티</h1>
     </header>
 
-    <!-- 로그인 및 회원가입 화면 -->
     <main id="authScreen" class="active">
       <div class="card">
         <h3>로그인</h3>
@@ -357,7 +334,6 @@
       </div>
     </main>
 
-    <!-- 메인 홈 화면 -->
     <main id="homeScreen" class="hidden">
       <div class="user-profile-card">
         <h3 id="userGreeting">사용자님 환영합니다</h3>
@@ -374,7 +350,6 @@
       </div>
     </main>
 
-    <!-- 상세 화면 -->
     <main id="detailScreen" class="hidden">
       <div class="detail-header">
         <button id="backToHomeBtn" class="ghost-btn">← 뒤로가기</button>
@@ -385,7 +360,7 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <!-- 최고 관리자(admin)에게만 표시되는 초기화 버튼 -->
+      <!-- 최고 관리자(milNumber가 'admin'이거나 role이 'admin')에게만 확실하게 노출되도록 제어 -->
       <button id="resetDataBtn" class="ghost-btn hidden" style="margin-top:10px; font-size:11px; color:#dc3545; border-color:#f8d7da; background-color:#f8d7da;">⚠️ 데이터 초기화 (최고 관리자 전용)</button>
     </footer>
   </div>
@@ -467,6 +442,11 @@
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
     }
 
+    // 최고 관리자 여부 판별 함수 (아이디가 'admin' 이거나 직책이 'admin'인 경우만 인정)
+    function isSuperAdmin() {
+      return currentUser && (currentUser.role === 'admin' || currentUser.milNumber === 'admin');
+    }
+
     function getStatusBadgeHTML(status) {
       if (status === '조치완료') {
         return `<span class="status-badge status-completed">조치완료</span>`;
@@ -477,90 +457,49 @@
       }
     }
 
-    /* 마음의 편지 분석 알고리즘 */
     function analyzeLetterContent(text) {
       if (!text) return null;
-
       const normalizedText = text.replace(/\s+/g, '');
-
-      const anxietyKeywords = [
-        '죽고싶', '죽고', '자살', '우울', '불면', '불안', '숨막', '숨이막', 
-        '괴롭', '정신적', '답답', '살기싫', '포기', '버티기', '공황', '잠이안', '잠도안', '잠을못', '힘들'
-      ];
-      const checkKeywords = [
-        '폭행', '욕설', '부조리', '가혹행위', '구타', '괴롭힘', '탈영', 
-        '신고', '갈취', '따돌림', '왕따', '협박', '폭언', '갈구'
-      ];
-      const etcKeywords = [
-        '고충', '상담', '건의', '어려움', '아픕', '병가', '병원', '진료', '외진'
-      ];
+      const anxietyKeywords = ['죽고싶', '죽고', '자살', '우울', '불면', '불안', '숨막', '숨이막', '괴롭', '정신적', '답답', '살기싫', '포기', '버티기', '공황', '잠이안', '잠도안', '잠을못', '힘들'];
+      const checkKeywords = ['폭행', '욕설', '부조리', '가혹행위', '구타', '괴롭힘', '탈영', '신고', '갈취', '따돌림', '왕따', '협박', '폭언', '갈구'];
+      const etcKeywords = ['고충', '상담', '건의', '어려움', '아픕', '병가', '병원', '진료', '외진'];
 
       let detectedAnxiety = [];
       let detectedCheck = [];
       let detectedEtc = [];
 
-      anxietyKeywords.forEach(k => { 
-        if (text.includes(k) || normalizedText.includes(k)) detectedAnxiety.push(k); 
-      });
-      checkKeywords.forEach(k => { 
-        if (text.includes(k) || normalizedText.includes(k)) detectedCheck.push(k); 
-      });
-      etcKeywords.forEach(k => { 
-        if (text.includes(k) || normalizedText.includes(k)) detectedEtc.push(k); 
-      });
+      anxietyKeywords.forEach(k => { if (text.includes(k) || normalizedText.includes(k)) detectedAnxiety.push(k); });
+      checkKeywords.forEach(k => { if (text.includes(k) || normalizedText.includes(k)) detectedCheck.push(k); });
+      etcKeywords.forEach(k => { if (text.includes(k) || normalizedText.includes(k)) detectedEtc.push(k); });
 
       detectedAnxiety = [...new Set(detectedAnxiety)];
       detectedCheck = [...new Set(detectedCheck)];
       detectedEtc = [...new Set(detectedEtc)];
 
       let tags = [];
-      if (detectedAnxiety.length > 0) {
-        tags.push({ type: 'anxiety', label: '⚠️ 심리불안', keywords: detectedAnxiety });
-      }
-      if (detectedCheck.length > 0) {
-        tags.push({ type: 'check', label: '🔍 확인필요', keywords: detectedCheck });
-      }
-      if (detectedEtc.length > 0 && tags.length === 0) {
-        tags.push({ type: 'etc', label: '💡 기타고충', keywords: detectedEtc });
-      }
+      if (detectedAnxiety.length > 0) tags.push({ type: 'anxiety', label: '⚠️ 심리불안', keywords: detectedAnxiety });
+      if (detectedCheck.length > 0) tags.push({ type: 'check', label: '🔍 확인필요', keywords: detectedCheck });
+      if (detectedEtc.length > 0 && tags.length === 0) tags.push({ type: 'etc', label: '💡 기타고충', keywords: detectedEtc });
 
       return tags.length > 0 ? tags : null;
     }
 
-    /* 건의사항 키워드 자동 분류 알고리즘 */
     function classifySuggestionContent(text) {
       if (!text) return { category: 'etc', label: '💡 기타', keywords: [] };
-
       const normalizedText = text.replace(/\s+/g, '');
 
-      // 1. 기자재 키워드
-      const equipmentKeywords = [
-        '사주세요', '구매', '사주', '교체', '구입', '사다', '비품', '물품', 
-        '장비', '기자재', '용품', '사주십쇼', '신청'
-      ];
-
-      // 2. 시설/난방 키워드
-      const facilityKeywords = [
-        '고쳐주세요', '고장', '난방', '에어컨', '히터', '수리', '보수', '파손', 
-        '누수', '샤워기', '변기', '세면대', '문고리', '창문', '전등', '환풍기', 
-        '냉방', '보일러', '따뜻', '춥', '더워', '더움'
-      ];
+      const equipmentKeywords = ['사주세요', '구매', '사주', '교체', '구입', '사다', '비품', '물품', '장비', '기자재', '용품', '사주십쇼', '신청'];
+      const facilityKeywords = ['고쳐주세요', '고장', '난방', '에어컨', '히터', '수리', '보수', '파손', '누수', '샤워기', '변기', '세면대', '문고리', '창문', '전등', '환풍기', '냉방', '보일러', '따뜻', '춥', '더워', '더움'];
 
       let detectedEquipment = [];
       let detectedFacility = [];
 
-      equipmentKeywords.forEach(k => {
-        if (text.includes(k) || normalizedText.includes(k)) detectedEquipment.push(k);
-      });
-
-      facilityKeywords.forEach(k => {
-        if (text.includes(k) || normalizedText.includes(k)) detectedFacility.push(k);
-      });
+      equipmentKeywords.forEach(k => { if (text.includes(k) || normalizedText.includes(k)) detectedEquipment.push(k); });
+      facilityKeywords.forEach(k => { if (text.includes(k) || normalizedText.includes(k)) detectedFacility.push(k); });
 
       detectedEquipment = [...new Set(detectedEquipment)];
       detectedFacility = [...new Set(detectedFacility)];
 
-      // 기자재 우선 분류, 그 다음 시설/난방
       if (detectedEquipment.length > 0) {
         return { category: 'equipment', label: '🛒 기자재', keywords: detectedEquipment };
       } else if (detectedFacility.length > 0) {
@@ -579,43 +518,33 @@
     function getUnreadCommentCount(comments = []) {
       if (!currentUser || !comments || comments.length === 0) return 0;
       const readIds = getReadCommentIds();
-
-      const unreadComments = comments.filter(c => {
+      return comments.filter(c => {
         const isMyComment = c.authorMilNumber && (c.authorMilNumber === currentUser.milNumber);
         const isRead = readIds.includes(c.id);
         return !isMyComment && !isRead;
-      });
-
-      return unreadComments.length;
+      }).length;
     }
 
     function markCommentsAsRead(comments = []) {
       if (!currentUser || !comments || comments.length === 0) return;
       const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
       let userReads = readsMap[currentUser.milNumber] || [];
-
       comments.forEach(c => {
-        if (!userReads.includes(c.id)) {
-          userReads.push(c.id);
-        }
+        if (!userReads.includes(c.id)) userReads.push(c.id);
       });
-
       readsMap[currentUser.milNumber] = userReads;
       localStorage.setItem(STORAGE_KEYS.COMMENT_READS, JSON.stringify(readsMap));
     }
 
     function updateMenuBadges() {
       if (!currentUser) return;
-
       const checkListNew = (items, isLetter = false) => {
         let count = 0;
         items.forEach(item => {
           if (isLetter) {
             const isMyPost = item.authorMilNumber === currentUser.milNumber;
             const isCommander = currentUser.role === 'commander';
-            if (isMyPost || isCommander) {
-              count += getUnreadCommentCount(item.comments);
-            }
+            if (isMyPost || isCommander) count += getUnreadCommentCount(item.comments);
           } else {
             count += getUnreadCommentCount(item.comments);
           }
@@ -623,30 +552,21 @@
         return count;
       };
 
-      const leaveUnread = checkListNew(leaves);
-      const letterUnread = checkListNew(letters, true);
-      const barberUnread = checkListNew(barberBookings);
-      const suggestionUnread = checkListNew(suggestions);
-      const noticeUnread = checkListNew(notices);
-
       const updateBadge = (id, count) => {
         const el = document.getElementById(id);
-        if (el) {
-          el.innerHTML = count > 0 ? `<span class="new-badge">N ${count}</span>` : '';
-        }
+        if (el) el.innerHTML = count > 0 ? `<span class="new-badge">N ${count}</span>` : '';
       };
 
-      updateBadge('badge-leave', leaveUnread);
-      updateBadge('badge-letter', letterUnread);
-      updateBadge('badge-barber', barberUnread);
-      updateBadge('badge-suggestion', suggestionUnread);
-      updateBadge('badge-notice', noticeUnread);
+      updateBadge('badge-leave', checkListNew(leaves));
+      updateBadge('badge-letter', checkListNew(letters, true));
+      updateBadge('badge-barber', checkListNew(barberBookings));
+      updateBadge('badge-suggestion', checkListNew(suggestions));
+      updateBadge('badge-notice', checkListNew(notices));
     }
 
     function renderCommentsSection(postId, comments = [], canReply = false) {
       const count = comments ? comments.length : 0;
       const unreadCount = getUnreadCommentCount(comments);
-
       const badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
 
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
@@ -742,13 +662,13 @@
           
           if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-          /* 오직 최고 관리자(admin) 계정에게만 표시되는 제어 */
-          const isAdmin = currentUser.role === 'admin';
+          // 🗂️ 관리자 DB 카드와 ⚠️ 데이터 초기화 버튼 제어 (오직 최고 관리자만 허용)
+          const isSuper = isSuperAdmin();
           if (adminCard) {
-            adminCard.classList.toggle('hidden', !isAdmin);
+            adminCard.classList.toggle('hidden', !isSuper);
           }
           if (resetDataBtn) {
-            resetDataBtn.classList.toggle('hidden', !isAdmin);
+            resetDataBtn.classList.toggle('hidden', !isSuper);
           }
 
           updateMenuBadges();
@@ -828,8 +748,9 @@
         updateUI();
       });
 
+      // 데이터 초기화 버튼 클릭 방어 로직 추가 강화
       resetDataBtn?.addEventListener('click', () => {
-        if (!currentUser || currentUser.role !== 'admin') {
+        if (!isSuperAdmin()) {
           alert('최고 관리자만 데이터를 초기화할 수 있습니다.');
           return;
         }
@@ -958,7 +879,6 @@
         });
       }
 
-      /* 1. 출타신청 */
       function openLeavePage() {
         document.getElementById('detailTitle').textContent = '방공대 출타신청';
         renderLeavePage();
@@ -1040,7 +960,6 @@
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      /* 2. 대장과의 대화 */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
@@ -1053,7 +972,6 @@
         const isCommander = currentUser.role === 'commander';
 
         let html = '';
-
         if (!isCommander) {
           html += `
             <div style="margin-bottom: 20px;">
@@ -1068,7 +986,6 @@
         }
 
         html += `<div class="letter-list">`;
-
         if (letters.length === 0) {
           html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
         } else {
@@ -1097,10 +1014,8 @@
                   let badgeClass = 'analysis-etc';
                   if (res.type === 'anxiety') badgeClass = 'analysis-anxiety';
                   if (res.type === 'check') badgeClass = 'analysis-check';
-
                   analysisHTML += `<span class="analysis-badge ${badgeClass}">${res.label}</span>`;
                 });
-                
                 const allKeywords = analysisResults.flatMap(r => r.keywords).join(', ');
                 analysisHTML += `<span style="font-size:10px; color:#d9534f; margin-left:4px;">(감지: ${allKeywords})</span>`;
                 analysisHTML += '</div>';
@@ -1113,19 +1028,13 @@
                   <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
                   <div>${getStatusBadgeHTML(status)}</div>
                 </div>
-                
                 ${analysisHTML}
-
                 <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
                 
                 ${canAccess ? `
                   <div style="margin-top:10px; padding:10px; background:#f9f9f9; border-radius:6px; font-size:14px; cursor:pointer;" class="letter-content-box" data-post-id="${post.id}">
-                    <div id="letterContent-${post.id}" class="clamp-2-lines">
-                      ${post.content.replace(/\n/g, '<br>')}
-                    </div>
-                    <div id="letterMoreBtn-${post.id}" style="font-size:11px; color:#0056b3; margin-top:6px; font-weight:bold;">
-                      더보기 ▼
-                    </div>
+                    <div id="letterContent-${post.id}" class="clamp-2-lines">${post.content.replace(/\n/g, '<br>')}</div>
+                    <div id="letterMoreBtn-${post.id}" style="font-size:11px; color:#0056b3; margin-top:6px; font-weight:bold;">더보기 ▼</div>
                   </div>
                   
                   ${isCommander ? `
@@ -1135,7 +1044,6 @@
                       <button class="change-status-btn" data-post-id="${post.id}" data-status="재검토" style="padding:4px 8px; font-size:11px; background-color:#dc3545; color:white;">재검토</button>
                     </div>
                   ` : ''}
-
                   ${renderCommentsSection(post.id, post.comments, isCommander || isMyPost)}
                 ` : `
                   <p style="font-size:12px; color:#d9534f; margin-top:8px;">🔒 비밀글입니다. 작성자와 지휘관만 열람할 수 있습니다.</p>
@@ -1174,11 +1082,10 @@
         }
 
         document.querySelectorAll('.letter-content-box').forEach(box => {
-          box.addEventListener('click', (e) => {
+          box.addEventListener('click', () => {
             const postId = box.dataset.postId;
             const contentEl = document.getElementById(`letterContent-${postId}`);
             const moreBtn = document.getElementById(`letterMoreBtn-${postId}`);
-
             if (contentEl) {
               const isClamped = contentEl.classList.contains('clamp-2-lines');
               if (isClamped) {
@@ -1195,7 +1102,6 @@
         bindCommonEvents(STORAGE_KEYS.LETTERS, renderLetterList);
       }
 
-      /* 3. 이발소 신청 */
       function openBarberPage() {
         document.getElementById('detailTitle').textContent = '이발소 예약 신청';
         renderBarberPage();
@@ -1263,7 +1169,6 @@
         bindCommonEvents(STORAGE_KEYS.BARBER, renderBarberPage);
       }
 
-      /* 4. 건의사항 (카테고리 자동 분류 적용) */
       function openSuggestionPage() {
         document.getElementById('detailTitle').textContent = '건의사항';
         renderSuggestionPage();
@@ -1299,7 +1204,6 @@
 
             let categoryHTML = `<div style="margin-bottom:6px;">
               <span class="sug-category-badge ${categoryBadgeClass}">${classification.label}</span>`;
-            
             if (isManager() && classification.keywords.length > 0) {
               categoryHTML += `<span style="font-size:10px; color:#666; margin-left:4px;">(키워드: ${classification.keywords.join(', ')})</span>`;
             }
@@ -1350,7 +1254,6 @@
         bindCommonEvents(STORAGE_KEYS.SUGGESTIONS, renderSuggestionPage);
       }
 
-      /* 5. 공지사항 */
       function openNoticePage() {
         document.getElementById('detailTitle').textContent = '공지사항';
         renderNoticePage();
@@ -1379,7 +1282,6 @@
           html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
         } else {
           const canReplyNotice = currentUser && currentUser.role !== 'user'; 
-
           notices.forEach(n => {
             html += `
               <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
@@ -1417,10 +1319,9 @@
         bindCommonEvents(STORAGE_KEYS.NOTICES, renderNoticePage);
       }
 
-      /* 관리자 DB 제어 */
       function openAdminPage() {
-        if (!currentUser || currentUser.role !== 'admin') {
-          alert('관리자만 접근 가능합니다.');
+        if (!isSuperAdmin()) {
+          alert('최고 관리자만 접근 가능합니다.');
           showScreen(homeScreen);
           return;
         }
