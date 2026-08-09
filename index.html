@@ -220,6 +220,25 @@
       background-color: #f8d7da;
     }
 
+    /* 새 댓글 알림 뱃지 */
+    .new-badge {
+      background-color: #dc3545;
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 4px;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
     footer {
       margin-top: auto;
       padding-top: 16px;
@@ -327,7 +346,8 @@
       LEAVES: 'app_leaves',
       BARBER: 'app_barber',
       SUGGESTIONS: 'app_suggestions',
-      NOTICES: 'app_notices'
+      NOTICES: 'app_notices',
+      COMMENT_READS: 'app_comment_reads'
     };
 
     function getTodayString() {
@@ -379,14 +399,40 @@
       }
     }
 
-    // 댓글 토글 및 목록 렌더링 함수 (기본 숨김 처리 및 댓글 개수 표시)
+    // 새 댓글 개수 조회
+    function getUnreadCommentCount(postId, comments = []) {
+      if (!currentUser || !comments || comments.length === 0) return 0;
+      const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
+      const userReads = readsMap[currentUser.milNumber] || {};
+      const lastReadId = userReads[postId] || 0;
+
+      // 내가 읽은 마지막 ID보다 이후에 등록된 댓글 중 내가 작성하지 않은 댓글 수
+      const unreadComments = comments.filter(c => c.id > lastReadId && c.authorMilNumber !== currentUser.milNumber);
+      return unreadComments.length;
+    }
+
+    // 댓글 읽음 상태 업데이트
+    function markCommentsAsRead(postId, comments = []) {
+      if (!currentUser || !comments || comments.length === 0) return;
+      const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
+      if (!readsMap[currentUser.milNumber]) readsMap[currentUser.milNumber] = {};
+      
+      const maxId = Math.max(...comments.map(c => c.id));
+      readsMap[currentUser.milNumber][postId] = maxId;
+      localStorage.setItem(STORAGE_KEYS.COMMENT_READS, JSON.stringify(readsMap));
+    }
+
+    // 댓글 토글 및 목록 렌더링 함수
     function renderCommentsSection(postId, comments = [], canReply = false) {
       const count = comments ? comments.length : 0;
+      const unreadCount = getUnreadCommentCount(postId, comments);
       
+      let badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
+
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <button class="toggle-comment-box-btn ghost-btn" data-post-id="${postId}" style="padding:4px 8px; font-size:12px; width:auto; color:#0056b3; border-color:#0056b3;">
-            💬 댓글 ${count}개 ${count > 0 ? '보기/작성' : '작성'}
+            💬 댓글 ${count}개 ${badgeHTML}
           </button>
         </div>
         <div id="commentContainer-${postId}" class="hidden" style="margin-top:10px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e0e0e0;">`;
@@ -395,7 +441,7 @@
         html += `<p style="font-size:11px; color:#999; margin-bottom:8px;">등록된 댓글이 없습니다.</p>`;
       } else {
         comments.forEach(c => {
-          const isMyComment = (isManager() && (c.role === 'commander' || c.role === 'admin')) || (c.author === currentUser?.name);
+          const isMyComment = c.authorMilNumber === currentUser?.milNumber;
           html += `
             <div style="font-size:12px; background:#fff; padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid #e9ecef;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -572,9 +618,23 @@
       function bindCommonEvents(storageKey, renderFunc) {
         document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
-            const postId = parseInt(e.target.dataset.postId);
+            const postId = parseInt(e.currentTarget.dataset.postId);
             const container = document.getElementById(`commentContainer-${postId}`);
-            if (container) container.classList.toggle('hidden');
+            if (container) {
+              const isOpening = container.classList.contains('hidden');
+              container.classList.toggle('hidden');
+
+              // 댓글창을 열 때 읽음 처리 및 N 뱃지 삭제
+              if (isOpening) {
+                let items = JSON.parse(localStorage.getItem(storageKey)) || [];
+                const post = items.find(i => i.id === postId);
+                if (post && post.comments) {
+                  markCommentsAsRead(postId, post.comments);
+                  const badge = e.currentTarget.querySelector('.new-badge');
+                  if (badge) badge.remove();
+                }
+              }
+            }
           });
         });
 
@@ -598,17 +658,22 @@
                   comment.createdAt = getTodayString() + ' (수정됨)';
                 }
               } else {
-                post.comments.push({
+                const newComment = {
                   id: Date.now(),
+                  authorMilNumber: currentUser.milNumber,
                   author: currentUser.name,
                   role: currentUser.role,
                   content,
                   createdAt: getTodayString()
-                });
+                };
+                post.comments.push(newComment);
               }
+
               localStorage.setItem(storageKey, JSON.stringify(items));
+              markCommentsAsRead(postId, post.comments); // 작성자 본인은 최신 읽음 처리
               renderFunc();
-              // 댓글 추가 후 펼친 상태 유지
+              
+              // 댓글 작성 후 댓글창 펼쳐짐 상태 유지
               const container = document.getElementById(`commentContainer-${postId}`);
               if (container) container.classList.remove('hidden');
             }
