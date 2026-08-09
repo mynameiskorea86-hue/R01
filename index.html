@@ -665,13 +665,22 @@
                   ` : ''}
 
                   <div style="margin-top:12px; border-top:1px dashed #ddd; padding-top:10px;">
-                    <h5 style="margin:0 0 6px 0;">지휘관 답변 및 대화</h5>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                      <h5 style="margin:0;">지휘관 답변 및 대화</h5>
+                      ${(currentUser.role === 'commander' || isMyPost) ? `
+                        <button class="toggle-comment-box-btn ghost-btn" data-post-id="${post.id}" style="padding:4px 8px; font-size:11px; width:auto;">💬 답변 작성/수정</button>
+                      ` : ''}
+                    </div>
+
                     ${renderComments(post.id, post.comments)}
                     
                     ${(currentUser.role === 'commander' || isMyPost) ? `
-                      <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-                        <textarea id="commentInput-${post.id}" placeholder="댓글 또는 답변을 작성하세요..." style="width:100%; height:60px; padding:8px; font-size:13px; resize:vertical;"></textarea>
-                        <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:8px; font-size:13px; width:100%;">답변 등록 / 수정</button>
+                      <div id="commentBox-${post.id}" class="hidden" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e0e0e0;">
+                        <textarea id="commentInput-${post.id}" placeholder="답변 내용을 입력하세요..." style="width:100%; height:70px; padding:8px; font-size:13px; resize:vertical;"></textarea>
+                        <div style="display:flex; gap:6px;">
+                          <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:8px; font-size:12px; flex:1;">등록하기</button>
+                          <button class="cancel-comment-btn ghost-btn" data-post-id="${post.id}" style="padding:8px; font-size:12px; width:auto;">취소</button>
+                        </div>
                       </div>
                     ` : ''}
                   </div>
@@ -692,6 +701,34 @@
 
         document.getElementById('submitLetterBtn')?.addEventListener('click', createLetter);
 
+        // 답변 작성/수정 버튼 클릭 이벤트 (입력창 토글)
+        document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentBox = document.getElementById(`commentBox-${postId}`);
+            if (commentBox) {
+              commentBox.classList.toggle('hidden');
+            }
+          });
+        });
+
+        // 취소 버튼 이벤트
+        document.querySelectorAll('.cancel-comment-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const postId = parseInt(e.target.dataset.postId);
+            const commentBox = document.getElementById(`commentBox-${postId}`);
+            const textarea = document.getElementById(`commentInput-${postId}`);
+            if (textarea) {
+              textarea.value = '';
+              delete textarea.dataset.editingCommentId;
+            }
+            if (commentBox) {
+              commentBox.classList.add('hidden');
+            }
+          });
+        });
+
+        // 댓글 등록/수정 전송
         document.querySelectorAll('.add-comment-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const postId = parseInt(e.target.dataset.postId);
@@ -699,6 +736,7 @@
           });
         });
 
+        // 기존 댓글 내 수정 버튼 클릭
         document.querySelectorAll('.edit-comment-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const postId = parseInt(e.target.dataset.postId);
@@ -707,6 +745,7 @@
           });
         });
 
+        // 상태 변경 버튼
         document.querySelectorAll('.change-status-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const postId = parseInt(e.target.dataset.postId);
@@ -771,13 +810,15 @@
         const comment = post.comments.find(c => c.id === commentId);
         if (!comment) return;
 
+        const commentBox = document.getElementById(`commentBox-${postId}`);
         const textarea = document.getElementById(`commentInput-${postId}`);
         const button = document.querySelector(`.add-comment-btn[data-post-id="${postId}"]`);
 
-        if (textarea && button) {
+        if (textarea && button && commentBox) {
           textarea.value = comment.content;
           textarea.dataset.editingCommentId = commentId;
-          button.textContent = '답변 수정 완료';
+          button.textContent = '수정 완료';
+          commentBox.classList.remove('hidden');
           textarea.focus();
         }
       }
@@ -813,7 +854,7 @@
           }
 
           localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-          renderLetterList();
+          renderLetterList(); // 리렌더링 시 입력창은 자동으로 초기화 및 숨김 처리됩니다.
         }
       }
 
