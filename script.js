@@ -9,7 +9,6 @@ const STORAGE_KEYS = {
 function initDefaultData() {
   let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
   
-  // 기본 관리자 계정 (admin / admin1234)
   const defaultAdmin = {
     milNumber: 'admin',
     name: '최고관리자',
@@ -19,7 +18,6 @@ function initDefaultData() {
     password: 'admin1234'
   };
 
-  // 기본 지휘관 계정 (commander / commander1234)
   const defaultCommander = {
     milNumber: 'commander',
     name: '방공대장',
@@ -29,7 +27,6 @@ function initDefaultData() {
     password: 'commander1234'
   };
 
-  // 관리자 계정이 목록에 없다면 자동 추가
   if (!savedUsers.some(u => u.milNumber === 'admin')) {
     savedUsers.push(defaultAdmin);
   }
@@ -71,10 +68,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const backToHomeBtn = document.getElementById('backToHomeBtn');
   const adminCard = document.getElementById('adminCard');
 
-  // 화면 전환 함수
-  function showScreen(screen) {
-    [authScreen, homeScreen, detailScreen].forEach(s => s.classList.remove('active'));
-    screen.classList.add('active');
+  // 💡 [화면 전환 함수] style.display로 확실하게 제어 (겹침 방지)
+  function showScreen(targetScreen) {
+    // 모든 화면 숨김
+    [authScreen, homeScreen, detailScreen].forEach(s => {
+      if (s) {
+        s.style.display = 'none';
+        s.classList.remove('active');
+      }
+    });
+
+    // 지정된 화면만 노출
+    if (targetScreen) {
+      targetScreen.style.display = 'block';
+      targetScreen.classList.add('active');
+    }
   }
 
   // 앱 UI 로그인 상태 업데이트
@@ -86,28 +94,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
       document.getElementById('userGreeting').textContent = `${currentUser.name} (${roleName})님 환영합니다`;
       document.getElementById('userInfoText').textContent = `${currentUser.milNumber} · ${currentUser.unitCode}`;
-      logoutBtn.classList.remove('hidden');
+      
+      if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-      if (currentUser.role === 'admin') {
-        adminCard.classList.remove('hidden');
-      } else {
-        adminCard.classList.add('hidden');
+      if (adminCard) {
+        if (currentUser.role === 'admin') {
+          adminCard.classList.remove('hidden');
+        } else {
+          adminCard.classList.add('hidden');
+        }
       }
 
+      // 로그인 상태이면 메인 화면만 보이기
       showScreen(homeScreen);
     } else {
-      logoutBtn.classList.add('hidden');
+      if (logoutBtn) logoutBtn.classList.add('hidden');
+      
+      // 로그아웃 상태이면 로그인 화면만 보이기
       showScreen(authScreen);
     }
   }
 
   // 회원가입 창 토글
-  showRegisterBtn.addEventListener('click', () => {
+  showRegisterBtn?.addEventListener('click', () => {
     registerCard.classList.toggle('hidden');
   });
 
   // 회원가입 처리
-  registerForm.addEventListener('submit', (e) => {
+  registerForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('milNumber').value.trim();
     const name = document.getElementById('registerName').value.trim();
@@ -130,33 +144,32 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 로그인 처리
-  loginForm.addEventListener('submit', (e) => {
+  loginForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('loginMilNumber').value.trim();
     const password = document.getElementById('loginPassword').value;
 
-    // 최신 사용자 정보 최신화
     users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
 
     const user = users.find(u => u.milNumber === milNumber && u.password === password);
     if (user) {
       currentUser = user;
       localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
-      updateUI();
+      updateUI(); // UI 및 화면 전환 업데이트
     } else {
       alert('군번(아이디) 또는 비밀번호가 올바르지 않습니다.');
     }
   });
 
   // 로그아웃 처리
-  logoutBtn.addEventListener('click', () => {
+  logoutBtn?.addEventListener('click', () => {
     currentUser = null;
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     updateUI();
   });
 
   // 메인으로 돌아가기
-  backToHomeBtn.addEventListener('click', () => {
+  backToHomeBtn?.addEventListener('click', () => {
     showScreen(homeScreen);
   });
 
@@ -203,11 +216,11 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
-        // 열람 권한: 작성 본인 또는 지휘관(commander)만 가능 (관리자 admin 및 일반 용사 제외)
+        // 열람 권한: 작성 본인 또는 지휘관(commander)만 가능
         const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
 
-        // 작성자 아이디 익명화
+        // 아이디 익명화
         const authorDisplay = isMyPost ? '본인' : '익명 (***)';
 
         html += `
@@ -222,12 +235,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${post.content.replace(/\n/g, '<br>')}
               </div>
               
-              <!-- 댓글 영역 -->
               <div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
                 <h5 style="margin:0 0 6px 0;">답변 / 댓글</h5>
                 ${renderComments(post.comments)}
                 
-                <!-- 댓글 작성 권한: 작성 본인 또는 지휘관(commander)만 가능 -->
                 ${(currentUser.role === 'commander' || isMyPost) ? `
                   <div style="display:flex; gap:5px; margin-top:8px;">
                     <input type="text" id="commentInput-${post.id}" placeholder="댓글을 입력하세요" style="flex:1; padding:6px; font-size:12px;" />
@@ -246,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
     html += `</div>`;
     detailContent.innerHTML = html;
 
-    // 이벤트 리스너 연결
     document.getElementById('writeLetterBtn')?.addEventListener('click', () => {
       document.getElementById('letterWriteForm').classList.toggle('hidden');
     });
@@ -323,6 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 초기 로그인 상태 업데이트 실행
+  // 앱 실행 시 초기 화면 정리
   updateUI();
 });
