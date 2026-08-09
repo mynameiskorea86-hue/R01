@@ -173,6 +173,7 @@
       color: #333;
       text-align: center;
       border-radius: 10px;
+      position: relative;
     }
 
     .menu-card:hover {
@@ -310,11 +311,11 @@
       </div>
 
       <div class="menu-grid">
-        <button class="menu-card" data-menu="leave">📅 출타신청</button>
-        <button class="menu-card" data-menu="letter">💬 대장과의 대화</button>
-        <button class="menu-card" data-menu="barber">✂️ 이발소 신청</button>
-        <button class="menu-card" data-menu="suggestion">📝 건의사항</button>
-        <button class="menu-card" data-menu="notice">📢 공지사항</button>
+        <button class="menu-card" data-menu="leave">📅 출타신청 <span id="badge-leave"></span></button>
+        <button class="menu-card" data-menu="letter">💬 대장과의 대화 <span id="badge-letter"></span></button>
+        <button class="menu-card" data-menu="barber">✂️ 이발소 신청 <span id="badge-barber"></span></button>
+        <button class="menu-card" data-menu="suggestion">📝 건의사항 <span id="badge-suggestion"></span></button>
+        <button class="menu-card" data-menu="notice">📢 공지사항 <span id="badge-notice"></span></button>
         <button id="adminCard" class="menu-card hidden" data-menu="admin" style="background-color: #e2e3e5;">🗂️ 관리자 DB</button>
       </div>
     </main>
@@ -373,7 +374,6 @@
     let users = initDefaultData();
     let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
 
-    // 구버전 댓글 데이터 자동 보정 (ID와 작성자 강제 부여)
     function sanitizeComments(items, storageKey) {
       if (!Array.isArray(items)) return [];
       let isModified = false;
@@ -422,7 +422,7 @@
       }
     }
 
-    // --- 댓글 읽음 상태 관리 ---
+    // --- 댓글 및 새글 알림 관리 ---
     function getReadCommentIds() {
       if (!currentUser) return [];
       const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
@@ -457,7 +457,46 @@
       localStorage.setItem(STORAGE_KEYS.COMMENT_READS, JSON.stringify(readsMap));
     }
 
-    // 댓글 영역 렌더링
+    // 홈 화면 버튼 알림 뱃지 업데이트
+    function updateMenuBadges() {
+      if (!currentUser) return;
+
+      const checkListNew = (items, isLetter = false) => {
+        let count = 0;
+        items.forEach(item => {
+          if (isLetter) {
+            const isMyPost = item.authorMilNumber === currentUser.milNumber;
+            const isCommander = currentUser.role === 'commander';
+            if (isMyPost || isCommander) {
+              count += getUnreadCommentCount(item.comments);
+            }
+          } else {
+            count += getUnreadCommentCount(item.comments);
+          }
+        });
+        return count;
+      };
+
+      const leaveUnread = checkListNew(leaves);
+      const letterUnread = checkListNew(letters, true);
+      const barberUnread = checkListNew(barberBookings);
+      const suggestionUnread = checkListNew(suggestions);
+      const noticeUnread = checkListNew(notices);
+
+      const updateBadge = (id, count) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.innerHTML = count > 0 ? `<span class="new-badge">N ${count}</span>` : '';
+        }
+      };
+
+      updateBadge('badge-leave', leaveUnread);
+      updateBadge('badge-letter', letterUnread);
+      updateBadge('badge-barber', barberUnread);
+      updateBadge('badge-suggestion', suggestionUnread);
+      updateBadge('badge-notice', noticeUnread);
+    }
+
     function renderCommentsSection(postId, comments = [], canReply = false) {
       const count = comments ? comments.length : 0;
       const unreadCount = getUnreadCommentCount(comments);
@@ -560,6 +599,7 @@
             adminCard.classList.toggle('hidden', currentUser.role !== 'admin');
           }
 
+          updateMenuBadges(); // 메인 메뉴 뱃지 갱신
           showScreen(homeScreen);
         } else {
           if (logoutBtn) logoutBtn.classList.add('hidden');
@@ -643,7 +683,10 @@
         }
       });
 
-      backToHomeBtn?.addEventListener('click', () => showScreen(homeScreen));
+      backToHomeBtn?.addEventListener('click', () => {
+        updateMenuBadges();
+        showScreen(homeScreen);
+      });
 
       document.querySelectorAll('.menu-card').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -657,7 +700,6 @@
         });
       });
 
-      // 공통 댓글 및 상태 관리
       function bindCommonEvents(storageKey, renderFunc) {
         document.querySelectorAll('.toggle-comment-box-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
@@ -840,7 +882,7 @@
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      /* 2. 대장과의 대화 (열람 권한 변경 반영) */
+      /* 2. 대장과의 대화 */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
@@ -868,11 +910,8 @@
         } else {
           letters.forEach((post) => {
             const isMyPost = currentUser.milNumber === post.authorMilNumber;
-            const isCommander = currentUser.role === 'commander'; // 지휘관 여부
-            
-            // 작성자 본인 또는 지휘관만 열람 가능 (관리자 제외)
+            const isCommander = currentUser.role === 'commander';
             const canAccess = isMyPost || isCommander; 
-            
             const authorDisplay = isMyPost ? '본인' : '익명 (***)';
             const status = post.status || '검토중';
 
@@ -1074,7 +1113,7 @@
         bindCommonEvents(STORAGE_KEYS.SUGGESTIONS, renderSuggestionPage);
       }
 
-      /* 5. 공지사항 */
+      /* 5. 공지사항 (용사 댓글 금지 적용) */
       function openNoticePage() {
         document.getElementById('detailTitle').textContent = '공지사항';
         renderNoticePage();
@@ -1102,13 +1141,16 @@
         if (notices.length === 0) {
           html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
         } else {
+          // 🔥 [핵심] 용사(user)는 댓글 작성 불가능
+          const canReplyNotice = currentUser && currentUser.role !== 'user'; 
+
           notices.forEach(n => {
             html += `
               <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff;">
                 <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
                 <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
                 <div style="font-size:13px; color:#333; margin-bottom:10px;">${n.content}</div>
-                ${renderCommentsSection(n.id, n.comments, true)}
+                ${renderCommentsSection(n.id, n.comments, canReplyNotice)}
               </div>
             `;
           });
