@@ -206,12 +206,12 @@ function renderLeaveDetail() {
           <select id="leaveSubregion"></select>
         </label>
       </div>
-      <div class="inline-row">
+            <div class="inline-row">
         <label>시작일
-          <input type="date" id="startDate" />
+          <input type="date" id="startDate" min="${new Date().toLocaleDateString('sv-SE')}" />
         </label>
         <label>종료일
-          <input type="date" id="endDate" />
+          <input type="date" id="endDate" min="${new Date().toLocaleDateString('sv-SE')}" />
         </label>
       </div>
       <label>사용 내역
@@ -281,8 +281,18 @@ function renderLeaveDetail() {
       const startDate = document.getElementById('startDate').value;
       const endDate = document.getElementById('endDate').value;
       const reason = document.getElementById('leaveReason').value;
-      if (!startDate || !endDate || !reason) {
+            if (!startDate || !endDate || !reason) {
         alert('필수 항목을 모두 입력해 주세요.');
+        return;
+      }
+
+      const todayStr = new Date().toLocaleDateString('sv-SE');
+      if (startDate < todayStr) {
+        alert('시작일은 오늘 이후여야 합니다.');
+        return;
+      }
+      if (endDate < startDate) {
+        alert('종료일은 시작일보다 빠를 수 없습니다.');
         return;
       }
 
@@ -443,10 +453,10 @@ function renderBarberDetail() {
   detailContent.innerHTML = '';
   const currentRole = normalizeRole(state.user?.role);
   const canSubmitBarber = ['user', 'officer', 'commander', 'admin'].includes(currentRole);
-  if (canSubmitBarber) {
+    if (canSubmitBarber) {
     detailContent.innerHTML = `
       <label>예약일
-        <input type="date" id="barberDate" />
+        <input type="date" id="barberDate" min="${new Date().toLocaleDateString('sv-SE')}" />
       </label>
       <label>요청사항
         <textarea id="barberNote" placeholder="두발 정리 요청 내용을 입력해 주세요."></textarea>
@@ -487,8 +497,13 @@ function renderBarberDetail() {
     document.getElementById('barberBookBtn')?.addEventListener('click', () => {
       const date = document.getElementById('barberDate').value;
       const note = document.getElementById('barberNote').value;
-      if (!date || !note) {
+            if (!date || !note) {
         alert('예약일과 요청사항을 입력해 주세요.');
+        return;
+      }
+      const todayStr = new Date().toLocaleDateString('sv-SE');
+      if (date < todayStr) {
+        alert('과거 날짜는 예약할 수 없습니다.');
         return;
       }
       state.barberBookings.push({ date, note, author: state.user.milNumber, status: '승인대기' });
