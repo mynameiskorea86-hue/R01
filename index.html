@@ -219,7 +219,7 @@
       background-color: #f8d7da;
     }
 
-    /* 🔥 [수정] 빨간색 NEW 뱃지 스타일 강제 적용 */
+    /* N 뱃지 스타일 */
     .new-badge {
       background-color: #ff0000 !important;
       color: #ffffff !important;
@@ -330,7 +330,6 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <!-- 고장 시 데이터 리셋 버튼 -->
       <button id="resetDataBtn" class="ghost-btn" style="margin-top:10px; font-size:11px; color:#888; border-color:#eee;">⚠️ N 뱃지 오류 시 저장 데이터 리셋</button>
     </footer>
   </div>
@@ -374,7 +373,7 @@
     let users = initDefaultData();
     let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
 
-    // 🔥 [핵심 수정] 구버전 댓글 데이터 자동 보정 (ID와 작성자 강제 부여)
+    // 구버전 댓글 데이터 자동 보정 (ID와 작성자 강제 부여)
     function sanitizeComments(items, storageKey) {
       if (!Array.isArray(items)) return [];
       let isModified = false;
@@ -434,7 +433,6 @@
       if (!currentUser || !comments || comments.length === 0) return 0;
       const readIds = getReadCommentIds();
 
-      // 내가 작성하지 않은 댓글 중 아직 안 읽은 댓글 계산
       const unreadComments = comments.filter(c => {
         const isMyComment = c.authorMilNumber && (c.authorMilNumber === currentUser.milNumber);
         const isRead = readIds.includes(c.id);
@@ -464,7 +462,6 @@
       const count = comments ? comments.length : 0;
       const unreadCount = getUnreadCommentCount(comments);
 
-      // 🔥 N 뱃지 태그 강제 생성
       const badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
 
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
@@ -638,7 +635,6 @@
         updateUI();
       });
 
-      // 강제 리셋 버튼 이벤트
       document.getElementById('resetDataBtn')?.addEventListener('click', () => {
         if (confirm('모든 게시글 및 댓글 데이터가 초기화됩니다. 계속하시겠습니까?')) {
           localStorage.clear();
@@ -844,7 +840,7 @@
         bindCommonEvents(STORAGE_KEYS.LEAVES, renderLeavePage);
       }
 
-      /* 2. 대장과의 대화 */
+      /* 2. 대장과의 대화 (열람 권한 변경 반영) */
       function openLetterBoard() {
         document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
         renderLetterList();
@@ -871,8 +867,12 @@
           html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
         } else {
           letters.forEach((post) => {
-            const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander' || currentUser.role === 'admin';
             const isMyPost = currentUser.milNumber === post.authorMilNumber;
+            const isCommander = currentUser.role === 'commander'; // 지휘관 여부
+            
+            // 작성자 본인 또는 지휘관만 열람 가능 (관리자 제외)
+            const canAccess = isMyPost || isCommander; 
+            
             const authorDisplay = isMyPost ? '본인' : '익명 (***)';
             const status = post.status || '검토중';
 
@@ -889,7 +889,7 @@
                     ${post.content.replace(/\n/g, '<br>')}
                   </div>
                   
-                  ${isManager() ? `
+                  ${isCommander ? `
                     <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
                       <span style="font-size:12px; font-weight:bold; color:#555;">상태 변경:</span>
                       <button class="change-status-btn" data-post-id="${post.id}" data-status="조치완료" style="padding:4px 8px; font-size:11px; background-color:#28a745; color:white;">조치완료</button>
@@ -897,7 +897,7 @@
                     </div>
                   ` : ''}
 
-                  ${renderCommentsSection(post.id, post.comments, isManager() || isMyPost)}
+                  ${renderCommentsSection(post.id, post.comments, isCommander || isMyPost)}
                 ` : `
                   <p style="font-size:12px; color:#d9534f; margin-top:8px;">🔒 비밀글입니다. 작성자와 지휘관만 열람할 수 있습니다.</p>
                 `}
