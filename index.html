@@ -219,18 +219,19 @@
       background-color: #f8d7da;
     }
 
-    /* 🔥 강조된 빨간색 NEW 뱃지 스타일 */
+    /* 🔥 [수정] 빨간색 NEW 뱃지 스타일 강제 적용 */
     .new-badge {
-      background-color: #dc3545;
-      color: #ffffff;
-      font-size: 11px;
-      font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 10px;
-      margin-left: 6px;
-      display: inline-block;
-      vertical-align: middle;
-      box-shadow: 0 0 4px rgba(220, 53, 69, 0.6);
+      background-color: #ff0000 !important;
+      color: #ffffff !important;
+      font-size: 11px !important;
+      font-weight: 800 !important;
+      padding: 2px 7px !important;
+      border-radius: 12px !important;
+      margin-left: 6px !important;
+      display: inline-block !important;
+      vertical-align: middle !important;
+      box-shadow: 0 0 5px rgba(255, 0, 0, 0.8) !important;
+      line-height: 1.2 !important;
     }
 
     footer {
@@ -329,6 +330,8 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
+      <!-- 고장 시 데이터 리셋 버튼 -->
+      <button id="resetDataBtn" class="ghost-btn" style="margin-top:10px; font-size:11px; color:#888; border-color:#eee;">⚠️ N 뱃지 오류 시 저장 데이터 리셋</button>
     </footer>
   </div>
 
@@ -341,7 +344,7 @@
       BARBER: 'app_barber',
       SUGGESTIONS: 'app_suggestions',
       NOTICES: 'app_notices',
-      COMMENT_READS: 'app_comment_reads_v2'
+      COMMENT_READS: 'app_comment_reads_v3'
     };
 
     function getTodayString() {
@@ -371,28 +374,40 @@
     let users = initDefaultData();
     let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
 
-    // 데이터 복구 및 ID 표준화 (구버전 댓글 대응)
-    function sanitizeComments(items) {
+    // 🔥 [핵심 수정] 구버전 댓글 데이터 자동 보정 (ID와 작성자 강제 부여)
+    function sanitizeComments(items, storageKey) {
       if (!Array.isArray(items)) return [];
-      items.forEach(item => {
+      let isModified = false;
+      items.forEach((item, pIdx) => {
+        if (!item.id) { item.id = Date.now() + pIdx; isModified = true; }
         if (item.comments && Array.isArray(item.comments)) {
-          item.comments.forEach((c, idx) => {
-            if (!c.id) c.id = item.id ? (item.id * 100 + idx + 1) : (Date.now() + idx);
+          item.comments.forEach((c, cIdx) => {
+            if (!c.id) {
+              c.id = item.id * 1000 + (cIdx + 1);
+              isModified = true;
+            }
+            if (!c.authorMilNumber) {
+              c.authorMilNumber = c.author === currentUser?.name ? currentUser.milNumber : 'unknown';
+              isModified = true;
+            }
           });
         } else {
           item.comments = [];
         }
       });
+      if (isModified && storageKey) {
+        localStorage.setItem(storageKey, JSON.stringify(items));
+      }
       return items;
     }
 
-    let letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || []);
-    let leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || []);
-    let barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || []);
-    let suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || []);
+    let letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [], STORAGE_KEYS.LETTERS);
+    let leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [], STORAGE_KEYS.LEAVES);
+    let barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [], STORAGE_KEYS.BARBER);
+    let suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [], STORAGE_KEYS.SUGGESTIONS);
     let notices = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
       { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01', comments: [] }
-    ]);
+    ], STORAGE_KEYS.NOTICES);
 
     function isManager() {
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
@@ -408,7 +423,7 @@
       }
     }
 
-    // --- 댓글 읽음 상태 관리 기능 ---
+    // --- 댓글 읽음 상태 관리 ---
     function getReadCommentIds() {
       if (!currentUser) return [];
       const readsMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMMENT_READS)) || {};
@@ -419,7 +434,7 @@
       if (!currentUser || !comments || comments.length === 0) return 0;
       const readIds = getReadCommentIds();
 
-      // 내가 작성하지 않은 댓글 중 아직 안 읽은 댓글 개수 산출
+      // 내가 작성하지 않은 댓글 중 아직 안 읽은 댓글 계산
       const unreadComments = comments.filter(c => {
         const isMyComment = c.authorMilNumber && (c.authorMilNumber === currentUser.milNumber);
         const isRead = readIds.includes(c.id);
@@ -449,6 +464,7 @@
       const count = comments ? comments.length : 0;
       const unreadCount = getUnreadCommentCount(comments);
 
+      // 🔥 N 뱃지 태그 강제 생성
       const badgeHTML = unreadCount > 0 ? `<span class="new-badge">N ${unreadCount}</span>` : '';
 
       let html = `<div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
@@ -622,6 +638,15 @@
         updateUI();
       });
 
+      // 강제 리셋 버튼 이벤트
+      document.getElementById('resetDataBtn')?.addEventListener('click', () => {
+        if (confirm('모든 게시글 및 댓글 데이터가 초기화됩니다. 계속하시겠습니까?')) {
+          localStorage.clear();
+          alert('초기화되었습니다. 페이지를 새로고침합니다.');
+          location.reload();
+        }
+      });
+
       backToHomeBtn?.addEventListener('click', () => showScreen(homeScreen));
 
       document.querySelectorAll('.menu-card').forEach(btn => {
@@ -646,7 +671,6 @@
               const isHidden = container.classList.contains('hidden');
               container.classList.toggle('hidden');
 
-              // 댓글창을 열 때 읽음 처리 및 N 뱃지 바로 제거
               if (isHidden) {
                 let items = JSON.parse(localStorage.getItem(storageKey)) || [];
                 const post = items.find(i => i.id === postId);
@@ -692,12 +716,9 @@
               }
 
               localStorage.setItem(storageKey, JSON.stringify(items));
-              
-              // 본인이 쓴 댓글은 읽음 처리
               markCommentsAsRead(post.comments); 
               renderFunc();
               
-              // 작성 후 댓글창 펼쳐진 상태 유지
               const container = document.getElementById(`commentContainer-${postId}`);
               if (container) container.classList.remove('hidden');
             }
@@ -749,7 +770,7 @@
       }
 
       function renderLeavePage() {
-        leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || []);
+        leaves = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [], STORAGE_KEYS.LEAVES);
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
@@ -831,7 +852,7 @@
       }
 
       function renderLetterList() {
-        letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || []);
+        letters = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [], STORAGE_KEYS.LETTERS);
         const detailContent = document.getElementById('detailContent');
 
         let html = `
@@ -922,7 +943,7 @@
       }
 
       function renderBarberPage() {
-        barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || []);
+        barberBookings = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [], STORAGE_KEYS.BARBER);
         const detailContent = document.getElementById('detailContent');
         const today = getTodayString();
 
@@ -990,7 +1011,7 @@
       }
 
       function renderSuggestionPage() {
-        suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || []);
+        suggestions = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [], STORAGE_KEYS.SUGGESTIONS);
         const detailContent = document.getElementById('detailContent');
 
         let html = `
@@ -1061,7 +1082,7 @@
       }
 
       function renderNoticePage() {
-        notices = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || []);
+        notices = sanitizeComments(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [], STORAGE_KEYS.NOTICES);
         const detailContent = document.getElementById('detailContent');
 
         let html = '';
@@ -1087,7 +1108,7 @@
                 <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
                 <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
                 <div style="font-size:13px; color:#333; margin-bottom:10px;">${n.content}</div>
-                ${renderCommentsSection(n.id, n.comments, isManager())}
+                ${renderCommentsSection(n.id, n.comments, true)}
               </div>
             `;
           });
