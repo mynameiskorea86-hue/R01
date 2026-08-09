@@ -360,7 +360,7 @@
 
     <footer>
       <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545; border-color: #dc3545;">로그아웃</button>
-      <!-- 최고 관리자(milNumber가 'admin'이거나 role이 'admin')에게만 확실하게 노출되도록 제어 -->
+      <!-- 오직 군번(아이디)이 'admin'인 최고 관리자에게만 노출 -->
       <button id="resetDataBtn" class="ghost-btn hidden" style="margin-top:10px; font-size:11px; color:#dc3545; border-color:#f8d7da; background-color:#f8d7da;">⚠️ 데이터 초기화 (최고 관리자 전용)</button>
     </footer>
   </div>
@@ -442,9 +442,9 @@
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
     }
 
-    // 최고 관리자 여부 판별 함수 (아이디가 'admin' 이거나 직책이 'admin'인 경우만 인정)
+    // 최고 관리자 여부 판별 함수 (오직 아이디가 'admin'인 계정만 최고 관리자로 인정)
     function isSuperAdmin() {
-      return currentUser && (currentUser.role === 'admin' || currentUser.milNumber === 'admin');
+      return currentUser && currentUser.milNumber === 'admin';
     }
 
     function getStatusBadgeHTML(status) {
