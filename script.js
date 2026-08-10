@@ -57,6 +57,13 @@ let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
   { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
 ];
 
+// 관리자 권한 확인 헬퍼 함수 (admin 또는 officer/commander 중 관리자 권한 부여 여부에 따라 체크)
+function isManager() {
+  if (!currentUser) return false;
+  // 최고관리자('admin') 또는 역할이 관리자인 경우
+  return currentUser.role === 'admin';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const authScreen = document.getElementById('authScreen');
   const homeScreen = document.getElementById('homeScreen');
@@ -75,7 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (roleSelect && registerSoldierDatesGroup) {
     roleSelect.addEventListener('change', () => {
-      // '용사(user)' 선택할 때만 입대일/전역예정일 표시
       if (roleSelect.value === 'user') {
         registerSoldierDatesGroup.style.display = 'flex';
       } else {
@@ -147,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const newUser = { milNumber, name, unitCode, role, password };
 
-    // 용사 선택시에만 날짜 저장
     if (role === 'user') {
       const enlistDateInput = document.getElementById('registerEnlistDate');
       const dischargeDateInput = document.getElementById('registerDischargeDate');
@@ -208,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 1. 出타신청
+  // 1. 출타신청
   function openLeavePage() {
     document.getElementById('detailTitle').textContent = '방공대 출타신청';
     const detailContent = document.getElementById('detailContent');
@@ -229,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button type="submit" class="primary-btn">신청하기</button>
       </form>
       <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
-      <h3>내 신청 현황</h3>
+      <h3>${isManager() ? '전체 출타 신청 현황 (관리자)' : '내 신청 현황'}</h3>
       <div id="leaveList"></div>
     `;
 
@@ -268,20 +273,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderLeaveList() {
     const leaveList = document.getElementById('leaveList');
-    const myLeaves = leaves.filter(l => l.milNumber === currentUser.milNumber);
+    // 관리자면 전체 목록, 일반 용사면 본인 목록만 표시
+    const targetLeaves = isManager() ? leaves : leaves.filter(l => l.milNumber === currentUser.milNumber);
 
-    if (myLeaves.length === 0) {
+    if (targetLeaves.length === 0) {
       leaveList.innerHTML = `<p style="font-size:12px; color:#888;">신청 내역이 없습니다.</p>`;
       return;
     }
 
-    leaveList.innerHTML = myLeaves.map(l => `
-      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-        <strong>[${l.type}]</strong> ${l.start} ~ ${l.end}<br/>
-        <span style="font-size:12px; color:#555;">사유: ${l.reason}</span><br/>
-        <span style="font-size:12px; color:#007bff;">상태: ${l.status}</span>
+    leaveList.innerHTML = targetLeaves.map(l => `
+      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          ${isManager() ? `<strong>[신청자: ${l.name} (${l.milNumber})]</strong><br/>` : ''}
+          <strong>[${l.type}]</strong> ${l.start} ~ ${l.end}<br/>
+          <span style="font-size:12px; color:#555;">사유: ${l.reason}</span><br/>
+          <span style="font-size:12px; color:#007bff;">상태: ${l.status}</span>
+        </div>
+        ${isManager() ? `<button class="delete-leave-btn" data-id="${l.id}" style="padding:6px 10px; font-size:11px; background:#dc3545; color:#fff; border:none; border-radius:4px; cursor:pointer;">삭제</button>` : ''}
       </div>
     `).join('');
+
+    // 관리자 삭제 이벤트 바인딩
+    if (isManager()) {
+      document.querySelectorAll('.delete-leave-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.target.dataset.id);
+          if (confirm('해당 출타 신청 내역을 삭제하시겠습니까?')) {
+            leaves = leaves.filter(l => l.id !== id);
+            localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
+            renderLeaveList();
+          }
+        });
+      });
+    }
   }
 
   // 2. 대장과의 대화
@@ -310,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
-        const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander';
+        const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander' || isManager();
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
         const authorDisplay = isMyPost ? '본인' : '익명 (***)';
 
@@ -318,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:10px; background:#fff;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <h4 style="margin:0; font-size:16px;">${canAccess ? '🔓 ' : '🔒 '}${post.title}</h4>
+              ${isManager() ? `<button class="delete-letter-btn" data-id="${post.id}" style="padding:4px 8px; font-size:11px; background:#dc3545; color:#fff; border:none; border-radius:4px; cursor:pointer;">삭제</button>` : ''}
             </div>
             <p style="font-size:12px; color:#666; margin:6px 0;">작성자: ${authorDisplay} | 작성일: ${post.createdAt}</p>
             
@@ -330,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h5 style="margin:0 0 6px 0;">답변 / 댓글</h5>
                 ${renderComments(post.comments)}
                 
-                ${(currentUser.role === 'commander' || isMyPost) ? `
+                ${(currentUser.role === 'commander' || isManager() || isMyPost) ? `
                   <div style="display:flex; gap:5px; margin-top:8px;">
                     <input type="text" id="commentInput-${post.id}" placeholder="댓글을 입력하세요" style="flex:1; padding:6px; font-size:12px;" />
                     <button class="add-comment-btn primary-btn" data-post-id="${post.id}" style="padding:6px 12px; font-size:12px;">등록</button>
@@ -360,6 +385,19 @@ document.addEventListener('DOMContentLoaded', () => {
         addComment(postId);
       });
     });
+
+    if (isManager()) {
+      document.querySelectorAll('.delete-letter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.target.dataset.id);
+          if (confirm('해당 마음의 편지 글을 삭제하시겠습니까?')) {
+            letters = letters.filter(l => l.id !== id);
+            localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
+            renderLetterList();
+          }
+        });
+      });
+    }
   }
 
   function renderComments(comments = []) {
@@ -436,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button type="submit" class="primary-btn">예약하기</button>
       </form>
       <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
-      <h3>내 예약 내역</h3>
+      <h3>${isManager() ? '전체 이발소 예약 현황 (관리자)' : '내 예약 내역'}</h3>
       <div id="barberList"></div>
     `;
 
@@ -462,18 +500,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderBarberList() {
     const list = document.getElementById('barberList');
-    const myBookings = barberBookings.filter(b => b.milNumber === currentUser.milNumber);
+    const targetBookings = isManager() ? barberBookings : barberBookings.filter(b => b.milNumber === currentUser.milNumber);
 
-    if (myBookings.length === 0) {
+    if (targetBookings.length === 0) {
       list.innerHTML = `<p style="font-size:12px; color:#888;">예약 내역이 없습니다.</p>`;
       return;
     }
 
-    list.innerHTML = myBookings.map(b => `
-      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-        📅 <strong>${b.date}</strong> - 예약완료
+    list.innerHTML = targetBookings.map(b => `
+      <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          ${isManager() ? `<strong>[예약자: ${b.name} (${b.milNumber})]</strong><br/>` : ''}
+          📅 <strong>${b.date}</strong> - 예약완료
+        </div>
+        ${isManager() ? `<button class="delete-barber-btn" data-id="${b.id}" style="padding:6px 10px; font-size:11px; background:#dc3545; color:#fff; border:none; border-radius:4px; cursor:pointer;">삭제</button>` : ''}
       </div>
     `).join('');
+
+    if (isManager()) {
+      document.querySelectorAll('.delete-barber-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.target.dataset.id);
+          if (confirm('해당 이발소 예약을 삭제하시겠습니까?')) {
+            barberBookings = barberBookings.filter(b => b.id !== id);
+            localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
+            renderBarberList();
+          }
+        });
+      });
+    }
   }
 
   // 4. 건의사항
@@ -522,11 +577,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     list.innerHTML = suggestions.map(s => `
       <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff;">
-        <h4 style="margin:0 0 4px 0;">${s.title}</h4>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="margin:0 0 4px 0;">${s.title}</h4>
+          ${isManager() ? `<button class="delete-suggestion-btn" data-id="${s.id}" style="padding:4px 8px; font-size:11px; background:#dc3545; color:#fff; border:none; border-radius:4px; cursor:pointer;">삭제</button>` : ''}
+        </div>
         <p style="font-size:12px; color:#666; margin:0 0 6px 0;">작성자: ${s.authorName} | ${s.date}</p>
         <p style="font-size:13px; margin:0;">${s.content}</p>
       </div>
     `).join('');
+
+    if (isManager()) {
+      document.querySelectorAll('.delete-suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.target.dataset.id);
+          if (confirm('해당 건의사항을 삭제하시겠습니까?')) {
+            suggestions = suggestions.filter(s => s.id !== id);
+            localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(suggestions));
+            renderSuggestionList();
+          }
+        });
+      });
+    }
   }
 
   // 5. 공지사항
@@ -534,16 +605,70 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('detailTitle').textContent = '공지사항';
     const detailContent = document.getElementById('detailContent');
 
+    let html = '';
+    
+    // 관리자일 경우 공지사항 작성 폼 추가
+    if (isManager()) {
+      html += `
+        <div style="background:#f9f9f9; padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid #e0e0e0;">
+          <h3 style="margin-top:0; font-size:14px;">📢 새 공지사항 등록</h3>
+          <form id="noticeForm" style="display:flex; flex-direction:column; gap:8px;">
+            <input type="text" id="noticeTitle" placeholder="공지 제목" style="padding:6px;" required />
+            <textarea id="noticeContent" placeholder="공지 내용을 입력하세요" style="height:60px; padding:6px;" required></textarea>
+            <button type="submit" class="primary-btn" style="font-size:12px; padding:6px;">공지 등록</button>
+          </form>
+        </div>
+        <hr style="margin:15px 0; border:none; border-top:1px solid #eee;" />
+      `;
+    }
+
     if (notices.length === 0) {
-      detailContent.innerHTML = `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
+      html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
     } else {
-      detailContent.innerHTML = notices.map(n => `
+      html += notices.map(n => `
         <div style="border:1px solid #ddd; padding:12px; border-radius:6px; margin-bottom:10px; background:#fff;">
-          <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="margin:0 0 6px 0; font-size:15px; color:#0056b3;">📢 ${n.title}</h4>
+            ${isManager() ? `<button class="delete-notice-btn" data-id="${n.id}" style="padding:4px 8px; font-size:11px; background:#dc3545; color:#fff; border:none; border-radius:4px; cursor:pointer;">삭제</button>` : ''}
+          </div>
           <p style="font-size:11px; color:#888; margin:0 0 8px 0;">등록일: ${n.date}</p>
           <div style="font-size:13px; color:#333;">${n.content}</div>
         </div>
       `).join('');
+    }
+
+    detailContent.innerHTML = html;
+
+    // 관리자 공지 등록 이벤트 바인딩
+    if (isManager()) {
+      document.getElementById('noticeForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = document.getElementById('noticeTitle').value.trim();
+        const content = document.getElementById('noticeContent').value.trim();
+
+        const newNotice = {
+          id: Date.now(),
+          title,
+          content,
+          date: getTodayString()
+        };
+
+        notices.unshift(newNotice);
+        localStorage.setItem(STORAGE_KEYS.NOTICES, JSON.stringify(notices));
+        alert('공지사항이 등록되었습니다.');
+        openNoticePage();
+      });
+
+      document.querySelectorAll('.delete-notice-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.target.dataset.id);
+          if (confirm('해당 공지사항을 삭제하시겠습니까?')) {
+            notices = notices.filter(n => n.id !== id);
+            localStorage.setItem(STORAGE_KEYS.NOTICES, JSON.stringify(notices));
+            openNoticePage();
+          }
+        });
+      });
     }
 
     showScreen(detailScreen);
@@ -690,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function editUserDB(milNumber) {
-    const targetUser = users.find(u => u.milNumber === milNumber);
+    const targetUser = users.users ? users.users.find(u => u.milNumber === milNumber) : users.find(u => u.milNumber === milNumber);
     if (!targetUser) return;
 
     const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
