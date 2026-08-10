@@ -454,7 +454,7 @@
     }
 
     function isSuperAdmin() {
-      return currentUser && currentUser.milNumber === 'admin';
+      return currentUser && (currentUser.milNumber === 'admin' || currentUser.role === 'admin');
     }
 
     function getStatusBadgeHTML(status, customCompletedText = '조치완료') {
@@ -761,7 +761,7 @@
 
       resetDataBtn?.addEventListener('click', () => {
         if (!isSuperAdmin()) {
-          alert('최고 관리자만 데이터를 초기화할 수 있습니다.');
+          alert('관리자만 데이터를 초기화할 수 있습니다.');
           return;
         }
 
@@ -1487,7 +1487,7 @@
 
       function openAdminPage() {
         if (!isSuperAdmin()) {
-          alert('최고 관리자만 접근 가능합니다.');
+          alert('관리자만 접근 가능합니다.');
           showScreen(homeScreen);
           return;
         }
@@ -1544,6 +1544,11 @@
 
         document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
           e.preventDefault();
+          if (!isSuperAdmin()) {
+            alert('관리자만 DB에 인원을 등록할 수 있습니다.');
+            return;
+          }
+
           const role = dbRoleSelect.value;
           const milNumber = document.getElementById('dbMilNumber').value.trim();
           const name = document.getElementById('dbName').value.trim();
@@ -1599,6 +1604,10 @@
 
         document.querySelectorAll('.delete-user-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
+            if (!isSuperAdmin()) {
+              alert('관리자만 삭제할 수 있습니다.');
+              return;
+            }
             const milNumber = e.target.dataset.mil;
             if (confirm(`군번 [${milNumber}] 인원을 삭제하시겠습니까?`)) {
               users = users.filter(u => u.milNumber !== milNumber);
