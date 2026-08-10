@@ -1,5 +1,5 @@
 // Supabase 설정 (본인의 프로젝트 URL과 Anon Key로 교체하세요)
-const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
+const SUPABASE_URL = 'https://nteyiracltjgeklvvrdj.supabase.co';
 const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
