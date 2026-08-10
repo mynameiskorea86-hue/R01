@@ -57,11 +57,10 @@ let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
   { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
 ];
 
-// 관리자 권한 확인 헬퍼 함수 (admin 또는 officer/commander 중 관리자 권한 부여 여부에 따라 체크)
+// 관리자 권한 확인 헬퍼 함수 (최고관리자 및 관리자 계정 모두 허용)
 function isManager() {
   if (!currentUser) return false;
-  // 최고관리자('admin') 또는 역할이 관리자인 경우
-  return currentUser.role === 'admin';
+  return currentUser.role === 'admin' || currentUser.role === 'manager';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -111,7 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let roleName = '용사';
       if (currentUser.role === 'officer') roleName = '간부';
       if (currentUser.role === 'commander') roleName = '지휘자';
-      if (currentUser.role === 'admin') roleName = '관리자';
+      if (currentUser.role === 'manager') roleName = '관리자';
+      if (currentUser.role === 'admin') roleName = '최고관리자';
 
       document.getElementById('userGreeting').textContent = `${currentUser.name} (${roleName})님 환영합니다`;
       document.getElementById('userInfoText').textContent = `${currentUser.milNumber} · ${currentUser.unitCode}`;
@@ -273,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderLeaveList() {
     const leaveList = document.getElementById('leaveList');
-    // 관리자면 전체 목록, 일반 용사면 본인 목록만 표시
     const targetLeaves = isManager() ? leaves : leaves.filter(l => l.milNumber === currentUser.milNumber);
 
     if (targetLeaves.length === 0) {
@@ -293,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `).join('');
 
-    // 관리자 삭제 이벤트 바인딩
     if (isManager()) {
       document.querySelectorAll('.delete-leave-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -607,7 +605,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let html = '';
     
-    // 관리자일 경우 공지사항 작성 폼 추가
     if (isManager()) {
       html += `
         <div style="background:#f9f9f9; padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid #e0e0e0;">
@@ -639,7 +636,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     detailContent.innerHTML = html;
 
-    // 관리자 공지 등록 이벤트 바인딩
     if (isManager()) {
       document.getElementById('noticeForm')?.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -677,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. 관리자 DB
   function openAdminPage() {
     if (!currentUser || currentUser.role !== 'admin') {
-      alert('관리자만 접근 가능한 페이지입니다.');
+      alert('최고관리자만 접근 가능한 페이지입니다.');
       showScreen(homeScreen);
       return;
     }
@@ -694,7 +690,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <option value="user">용사</option>
               <option value="officer">간부</option>
               <option value="commander">지휘자</option>
-              <option value="admin">관리자</option>
+              <option value="manager">관리자</option>
+              <option value="admin">최고관리자</option>
             </select>
           </label>
           <label style="font-size:12px;">군번(아이디)
@@ -782,7 +779,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let roleLabel = '용사';
       if (u.role === 'officer') roleLabel = '간부';
       if (u.role === 'commander') roleLabel = '지휘자';
-      if (u.role === 'admin') roleLabel = '관리자';
+      if (u.role === 'manager') roleLabel = '관리자';
+      if (u.role === 'admin') roleLabel = '최고관리자';
 
       return `
         <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
@@ -815,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function editUserDB(milNumber) {
-    const targetUser = users.users ? users.users.find(u => u.milNumber === milNumber) : users.find(u => u.milNumber === milNumber);
+    const targetUser = users.find(u => u.milNumber === milNumber);
     if (!targetUser) return;
 
     const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
