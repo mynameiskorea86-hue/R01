@@ -453,8 +453,12 @@
       return currentUser && (currentUser.role === 'commander' || currentUser.role === 'admin');
     }
 
+    function isAdminUser() {
+      return currentUser && currentUser.role === 'admin';
+    }
+
     function isSuperAdmin() {
-      return currentUser && (currentUser.milNumber === 'admin' || currentUser.role === 'admin');
+      return currentUser && currentUser.milNumber === 'admin';
     }
 
     function getStatusBadgeHTML(status, customCompletedText = '조치완료') {
@@ -674,12 +678,12 @@
           
           if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-          const isSuper = isSuperAdmin();
+          const isAdmin = isAdminUser();
           if (adminCard) {
-            adminCard.classList.toggle('hidden', !isSuper);
+            adminCard.classList.toggle('hidden', !isAdmin);
           }
           if (resetDataBtn) {
-            resetDataBtn.classList.toggle('hidden', !isSuper);
+            resetDataBtn.classList.toggle('hidden', !isSuperAdmin());
           }
 
           updateMenuBadges();
@@ -761,7 +765,7 @@
 
       resetDataBtn?.addEventListener('click', () => {
         if (!isSuperAdmin()) {
-          alert('관리자만 데이터를 초기화할 수 있습니다.');
+          alert('최고 관리자만 데이터를 초기화할 수 있습니다.');
           return;
         }
 
@@ -1486,7 +1490,7 @@
       }
 
       function openAdminPage() {
-        if (!isSuperAdmin()) {
+        if (!isAdminUser()) {
           alert('관리자만 접근 가능합니다.');
           showScreen(homeScreen);
           return;
@@ -1544,7 +1548,7 @@
 
         document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
           e.preventDefault();
-          if (!isSuperAdmin()) {
+          if (!isAdminUser()) {
             alert('관리자만 DB에 인원을 등록할 수 있습니다.');
             return;
           }
@@ -1604,7 +1608,7 @@
 
         document.querySelectorAll('.delete-user-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
-            if (!isSuperAdmin()) {
+            if (!isAdminUser()) {
               alert('관리자만 삭제할 수 있습니다.');
               return;
             }
