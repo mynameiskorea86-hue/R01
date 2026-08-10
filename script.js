@@ -1,13 +1,7 @@
-// LocalStorage 키 정의
-const STORAGE_KEYS = {
-  USERS: 'app_users',
-  SESSION: 'app_session',
-  LETTERS: 'app_letters',
-  LEAVES: 'app_leaves',
-  BARBER: 'app_barber',
-  SUGGESTIONS: 'app_suggestions',
-  NOTICES: 'app_notices'
-};
+// Supabase 설정 (본인의 프로젝트 URL과 Anon Key로 교체하세요)
+const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 오늘 날짜 구하기 (YYYY-MM-DD 형식)
 function getTodayString() {
@@ -18,52 +12,16 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 
-// 기본 데이터 및 테스트 계정 초기화
-function initDefaultData() {
-  let savedUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-  
-  const defaultAdmin = {
-    milNumber: 'admin',
-    name: '최고관리자',
-    unitCode: '5기갑 방공대',
-    role: 'admin',
-    password: 'admin1234'
-  };
+// 세션 관리 (로그인 상태는 localStorage 또는 sessionStorage 활용 유지)
+let currentUser = JSON.parse(localStorage.getItem('app_session')) || null;
 
-  const defaultCommander = {
-    milNumber: 'commander',
-    name: '방공대장',
-    unitCode: '5기갑 방공대',
-    role: 'commander',
-    password: 'commander1234'
-  };
-
-  if (!savedUsers.some(u => u.milNumber === 'admin')) savedUsers.push(defaultAdmin);
-  if (!savedUsers.some(u => u.milNumber === 'commander')) savedUsers.push(defaultCommander);
-
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(savedUsers));
-  return savedUsers;
-}
-
-let users = initDefaultData();
-let currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || null;
-
-// 각 기능별 저장 데이터 로드
-let letters = JSON.parse(localStorage.getItem(STORAGE_KEYS.LETTERS)) || [];
-let leaves = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || [];
-let barberBookings = JSON.parse(localStorage.getItem(STORAGE_KEYS.BARBER)) || [];
-let suggestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUGGESTIONS)) || [];
-let notices = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTICES)) || [
-  { id: 1, title: '5기갑 방공대 커뮤니티 앱 정식 오픈 안내', content: '부대 소통 활성화를 위한 앱이 오픈되었습니다.', date: '2026-08-01' }
-];
-
-// 관리자 권한 확인 헬퍼 함수 (최고관리자 및 관리자 계정 모두 허용)
+// 관리자 권한 확인 헬퍼 함수
 function isManager() {
   if (!currentUser) return false;
   return currentUser.role === 'admin' || currentUser.role === 'manager';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const authScreen = document.getElementById('authScreen');
   const homeScreen = document.getElementById('homeScreen');
   const detailScreen = document.getElementById('detailScreen');
@@ -137,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     registerCard.classList.toggle('hidden');
   });
 
-  // 회원가입 처리
-  registerForm?.addEventListener('submit', (e) => {
+  // 회원가입 처리 (Supabase DB 사용)
+  registerForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('milNumber').value.trim();
     const name = document.getElementById('registerName').value.trim();
@@ -146,7 +104,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const role = document.getElementById('roleSelect').value;
     const password = document.getElementById('registerPassword').value;
 
-    if (users.find(u => u.milNumber === milNumber)) {
+    // 중복 군번 확인
+    const { data: existingUser } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('milNumber', milNumber)
+      .maybeSingle();
+
+    if (existingUser) {
       alert('이미 가입된 군번/아이디입니다.');
       return;
     }
@@ -161,8 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dischargeDateInput) newUser.dischargeDate = dischargeDateInput.value;
     }
 
-    users.push(newUser);
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    const { error } = await supabaseClient.from('users').insert([newUser]);
+    if (error) {
+      alert('회원가입 실패: ' + error.message);
+      return;
+    }
+
     alert('회원가입이 완료되었습니다.');
     registerCard.classList.add('hidden');
     registerForm.reset();
@@ -170,18 +139,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (registerSoldierDatesGroup) registerSoldierDatesGroup.style.display = 'flex';
   });
 
-  // 로그인
-  loginForm?.addEventListener('submit', (e) => {
+  // 로그인 (Supabase DB 조회)
+  loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const milNumber = document.getElementById('loginMilNumber').value.trim();
     const password = document.getElementById('loginPassword').value;
 
-    users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-    const user = users.find(u => u.milNumber === milNumber && u.password === password);
+    const { data: user, error } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('milNumber', milNumber)
+      .eq('password', password)
+      .maybeSingle();
     
-    if (user) {
+    if (user && !error) {
       currentUser = user;
-      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
+      localStorage.setItem('app_session', JSON.stringify(currentUser));
       updateUI();
     } else {
       alert('군번(아이디) 또는 비밀번호가 올바르지 않습니다.');
@@ -191,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로그아웃
   logoutBtn?.addEventListener('click', () => {
     currentUser = null;
-    localStorage.removeItem(STORAGE_KEYS.SESSION);
+    localStorage.removeItem('app_session');
     updateUI();
   });
 
@@ -214,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 1. 출타신청
-  function openLeavePage() {
+  async function openLeavePage() {
     document.getElementById('detailTitle').textContent = '방공대 출타신청';
     const detailContent = document.getElementById('detailContent');
     const today = getTodayString();
@@ -238,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div id="leaveList"></div>
     `;
 
-    renderLeaveList();
+    await renderLeaveList();
 
     const startInput = document.getElementById('leaveStart');
     const endInput = document.getElementById('leaveEnd');
@@ -250,10 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    document.getElementById('leaveForm').addEventListener('submit', (e) => {
+    document.getElementById('leaveForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newLeave = {
-        id: Date.now(),
         milNumber: currentUser.milNumber,
         name: currentUser.name,
         type: document.getElementById('leaveType').value,
@@ -262,25 +234,40 @@ document.addEventListener('DOMContentLoaded', () => {
         reason: document.getElementById('leaveReason').value,
         status: '대기중'
       };
-      leaves.unshift(newLeave);
-      localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
+
+      const { error } = await supabaseClient.from('leaves').insert([newLeave]);
+      if (error) {
+        alert('신청 실패: ' + error.message);
+        return;
+      }
+
       alert('출타 신청이 완료되었습니다.');
-      renderLeaveList();
+      await renderLeaveList();
     });
 
     showScreen(detailScreen);
   }
 
-  function renderLeaveList() {
+  async function renderLeaveList() {
     const leaveList = document.getElementById('leaveList');
-    const targetLeaves = isManager() ? leaves : leaves.filter(l => l.milNumber === currentUser.milNumber);
+    
+    let query = supabaseClient.from('leaves').select('*').order('id', { ascending: false });
+    if (!isManager()) {
+      query = query.eq('milNumber', currentUser.milNumber);
+    }
 
-    if (targetLeaves.length === 0) {
+    const { data: leaves, error } = await query;
+    if (error) {
+      leaveList.innerHTML = `<p style="font-size:12px; color:#888;">데이터를 불러오지 못했습니다.</p>`;
+      return;
+    }
+
+    if (!leaves || leaves.length === 0) {
       leaveList.innerHTML = `<p style="font-size:12px; color:#888;">신청 내역이 없습니다.</p>`;
       return;
     }
 
-    leaveList.innerHTML = targetLeaves.map(l => `
+    leaveList.innerHTML = leaves.map(l => `
       <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
         <div>
           ${isManager() ? `<strong>[신청자: ${l.name} (${l.milNumber})]</strong><br/>` : ''}
@@ -294,12 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isManager()) {
       document.querySelectorAll('.delete-leave-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = Number(e.target.dataset.id);
           if (confirm('해당 출타 신청 내역을 삭제하시겠습니까?')) {
-            leaves = leaves.filter(l => l.id !== id);
-            localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
-            renderLeaveList();
+            await supabaseClient.from('leaves').delete().eq('id', id);
+            await renderLeaveList();
           }
         });
       });
@@ -307,14 +293,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 2. 대장과의 대화
-  function openLetterBoard() {
+  async function openLetterBoard() {
     document.getElementById('detailTitle').textContent = '대장과의 대화 (마음의 편지)';
-    renderLetterList();
+    await renderLetterList();
     showScreen(detailScreen);
   }
 
-  function renderLetterList() {
+  async function renderLetterList() {
     const detailContent = document.getElementById('detailContent');
+
+    const { data: letters, error } = await supabaseClient
+      .from('letters')
+      .select('*')
+      .order('id', { ascending: false });
 
     let html = `
       <div style="margin-bottom: 20px;">
@@ -328,13 +319,14 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="letter-list">
     `;
 
-    if (letters.length === 0) {
+    if (error || !letters || letters.length === 0) {
       html += `<p style="text-align:center; color:#888;">등록된 편지가 없습니다.</p>`;
     } else {
       letters.forEach((post) => {
         const canAccess = currentUser.milNumber === post.authorMilNumber || currentUser.role === 'commander' || isManager();
         const isMyPost = currentUser.milNumber === post.authorMilNumber;
         const authorDisplay = isMyPost ? '본인' : '익명 (***)';
+        const comments = post.comments || [];
 
         html += `
           <div class="letter-card" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:10px; background:#fff;">
@@ -351,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
               
               <div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
                 <h5 style="margin:0 0 6px 0;">답변 / 댓글</h5>
-                ${renderComments(post.comments)}
+                ${renderComments(comments)}
                 
                 ${(currentUser.role === 'commander' || isManager() || isMyPost) ? `
                   <div style="display:flex; gap:5px; margin-top:8px;">
@@ -379,19 +371,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.add-comment-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const postId = parseInt(e.target.dataset.postId);
-        addComment(postId);
+        const postId = Number(e.target.dataset.postId);
+        addComment(postId, letters);
       });
     });
 
     if (isManager()) {
       document.querySelectorAll('.delete-letter-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = Number(e.target.dataset.id);
           if (confirm('해당 마음의 편지 글을 삭제하시겠습니까?')) {
-            letters = letters.filter(l => l.id !== id);
-            localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-            renderLetterList();
+            await supabaseClient.from('letters').delete().eq('id', id);
+            await renderLetterList();
           }
         });
       });
@@ -410,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  function createLetter() {
+  async function createLetter() {
     const title = document.getElementById('letterTitle').value.trim();
     const content = document.getElementById('letterText').value.trim();
 
@@ -421,7 +412,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const today = getTodayString();
     const newLetter = {
-      id: Date.now(),
       title,
       content,
       authorMilNumber: currentUser.milNumber,
@@ -430,12 +420,16 @@ document.addEventListener('DOMContentLoaded', () => {
       comments: []
     };
 
-    letters.unshift(newLetter);
-    localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-    renderLetterList();
+    const { error } = await supabaseClient.from('letters').insert([newLetter]);
+    if (error) {
+      alert('등록 실패: ' + error.message);
+      return;
+    }
+
+    await renderLetterList();
   }
 
-  function addComment(postId) {
+  async function addComment(postId, letters) {
     const input = document.getElementById(`commentInput-${postId}`);
     const content = input.value.trim();
 
@@ -447,21 +441,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const post = letters.find(l => l.id === postId);
     if (post) {
       const today = getTodayString();
-      post.comments.push({
+      const updatedComments = [...(post.comments || []), {
         id: Date.now(),
         author: currentUser.name,
         role: currentUser.role,
         content,
         createdAt: today
-      });
+      }];
 
-      localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(letters));
-      renderLetterList();
+      const { error } = await supabaseClient
+        .from('letters')
+        .update({ comments: updatedComments })
+        .eq('id', postId);
+
+      if (error) {
+        alert('댓글 등록 실패: ' + error.message);
+        return;
+      }
+
+      await renderLetterList();
     }
   }
 
   // 3. 이발소
-  function openBarberPage() {
+  async function openBarberPage() {
     document.getElementById('detailTitle').textContent = '이발소 예약 신청';
     const detailContent = document.getElementById('detailContent');
     const today = getTodayString();
@@ -476,36 +479,44 @@ document.addEventListener('DOMContentLoaded', () => {
       <div id="barberList"></div>
     `;
 
-    renderBarberList();
+    await renderBarberList();
 
-    document.getElementById('barberForm').addEventListener('submit', (e) => {
+    document.getElementById('barberForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newBooking = {
-        id: Date.now(),
         milNumber: currentUser.milNumber,
         name: currentUser.name,
         date: document.getElementById('barberDate').value
       };
 
-      barberBookings.unshift(newBooking);
-      localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
+      const { error } = await supabaseClient.from('barber').insert([newBooking]);
+      if (error) {
+        alert('예약 실패: ' + error.message);
+        return;
+      }
+
       alert('이발소 예약이 완료되었습니다.');
-      renderBarberList();
+      await renderBarberList();
     });
 
     showScreen(detailScreen);
   }
 
-  function renderBarberList() {
+  async function renderBarberList() {
     const list = document.getElementById('barberList');
-    const targetBookings = isManager() ? barberBookings : barberBookings.filter(b => b.milNumber === currentUser.milNumber);
+    
+    let query = supabaseClient.from('barber').select('*').order('id', { ascending: false });
+    if (!isManager()) {
+      query = query.eq('milNumber', currentUser.milNumber);
+    }
 
-    if (targetBookings.length === 0) {
+    const { data: barberBookings, error } = await query;
+    if (error || !barberBookings || barberBookings.length === 0) {
       list.innerHTML = `<p style="font-size:12px; color:#888;">예약 내역이 없습니다.</p>`;
       return;
     }
 
-    list.innerHTML = targetBookings.map(b => `
+    list.innerHTML = barberBookings.map(b => `
       <div style="border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
         <div>
           ${isManager() ? `<strong>[예약자: ${b.name} (${b.milNumber})]</strong><br/>` : ''}
@@ -517,12 +528,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isManager()) {
       document.querySelectorAll('.delete-barber-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = Number(e.target.dataset.id);
           if (confirm('해당 이발소 예약을 삭제하시겠습니까?')) {
-            barberBookings = barberBookings.filter(b => b.id !== id);
-            localStorage.setItem(STORAGE_KEYS.BARBER, JSON.stringify(barberBookings));
-            renderBarberList();
+            await supabaseClient.from('barber').delete().eq('id', id);
+            await renderBarberList();
           }
         });
       });
@@ -530,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 4. 건의사항
-  function openSuggestionPage() {
+  async function openSuggestionPage() {
     document.getElementById('detailTitle').textContent = '건의사항';
     const detailContent = document.getElementById('detailContent');
 
@@ -545,30 +555,38 @@ document.addEventListener('DOMContentLoaded', () => {
       <div id="suggestionList"></div>
     `;
 
-    renderSuggestionList();
+    await renderSuggestionList();
 
-    document.getElementById('suggestionForm').addEventListener('submit', (e) => {
+    document.getElementById('suggestionForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newSugg = {
-        id: Date.now(),
         title: document.getElementById('suggestionTitle').value.trim(),
         content: document.getElementById('suggestionContent').value.trim(),
         authorName: currentUser.name,
         date: getTodayString()
       };
 
-      suggestions.unshift(newSugg);
-      localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(suggestions));
+      const { error } = await supabaseClient.from('suggestions').insert([newSugg]);
+      if (error) {
+        alert('등록 실패: ' + error.message);
+        return;
+      }
+
       alert('건의사항이 등록되었습니다.');
-      renderSuggestionList();
+      await renderSuggestionList();
     });
 
     showScreen(detailScreen);
   }
 
-  function renderSuggestionList() {
+  async function renderSuggestionList() {
     const list = document.getElementById('suggestionList');
-    if (suggestions.length === 0) {
+    const { data: suggestions, error } = await supabaseClient
+      .from('suggestions')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error || !suggestions || suggestions.length === 0) {
       list.innerHTML = `<p style="font-size:12px; color:#888;">등록된 건의사항이 없습니다.</p>`;
       return;
     }
@@ -586,12 +604,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isManager()) {
       document.querySelectorAll('.delete-suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = Number(e.target.dataset.id);
           if (confirm('해당 건의사항을 삭제하시겠습니까?')) {
-            suggestions = suggestions.filter(s => s.id !== id);
-            localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(suggestions));
-            renderSuggestionList();
+            await supabaseClient.from('suggestions').delete().eq('id', id);
+            await renderSuggestionList();
           }
         });
       });
@@ -599,9 +616,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 5. 공지사항
-  function openNoticePage() {
+  async function openNoticePage() {
     document.getElementById('detailTitle').textContent = '공지사항';
     const detailContent = document.getElementById('detailContent');
+
+    const { data: notices, error } = await supabaseClient
+      .from('notices')
+      .select('*')
+      .order('id', { ascending: false });
 
     let html = '';
     
@@ -619,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    if (notices.length === 0) {
+    if (error || !notices || notices.length === 0) {
       html += `<p style="text-align:center; color:#888;">등록된 공지사항이 없습니다.</p>`;
     } else {
       html += notices.map(n => `
@@ -637,31 +659,33 @@ document.addEventListener('DOMContentLoaded', () => {
     detailContent.innerHTML = html;
 
     if (isManager()) {
-      document.getElementById('noticeForm')?.addEventListener('submit', (e) => {
+      document.getElementById('noticeForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const title = document.getElementById('noticeTitle').value.trim();
         const content = document.getElementById('noticeContent').value.trim();
 
         const newNotice = {
-          id: Date.now(),
           title,
           content,
           date: getTodayString()
         };
 
-        notices.unshift(newNotice);
-        localStorage.setItem(STORAGE_KEYS.NOTICES, JSON.stringify(notices));
+        const { error } = await supabaseClient.from('notices').insert([newNotice]);
+        if (error) {
+          alert('등록 실패: ' + error.message);
+          return;
+        }
+
         alert('공지사항이 등록되었습니다.');
-        openNoticePage();
+        await openNoticePage();
       });
 
       document.querySelectorAll('.delete-notice-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = Number(e.target.dataset.id);
           if (confirm('해당 공지사항을 삭제하시겠습니까?')) {
-            notices = notices.filter(n => n.id !== id);
-            localStorage.setItem(STORAGE_KEYS.NOTICES, JSON.stringify(notices));
-            openNoticePage();
+            await supabaseClient.from('notices').delete().eq('id', id);
+            await openNoticePage();
           }
         });
       });
@@ -671,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 6. 관리자 DB
-  function openAdminPage() {
+  async function openAdminPage() {
     if (!currentUser || currentUser.role !== 'admin') {
       alert('최고관리자만 접근 가능한 페이지입니다.');
       showScreen(homeScreen);
@@ -722,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
-      <h3>전체 등록 인원 목록 (<span id="userCount">${users.length}</span>명)</h3>
+      <h3>전체 등록 인원 목록 (<span id="userCount">0</span>명)</h3>
       <div id="adminUserList" style="max-height:300px; overflow-y:auto;"></div>
     `;
 
@@ -737,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    document.getElementById('adminAddUserForm').addEventListener('submit', (e) => {
+    document.getElementById('adminAddUserForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const role = dbRoleSelect.value;
@@ -746,7 +770,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const unitCode = document.getElementById('dbUnitCode').value.trim();
       const password = document.getElementById('dbPassword').value;
 
-      if (users.find(u => u.milNumber === milNumber)) {
+      const { data: existing } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('milNumber', milNumber)
+        .maybeSingle();
+
+      if (existing) {
         alert('이미 등록된 군번입니다.');
         return;
       }
@@ -758,21 +788,32 @@ document.addEventListener('DOMContentLoaded', () => {
         newUser.dischargeDate = document.getElementById('dbDischargeDate').value;
       }
 
-      users.push(newUser);
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      const { error } = await supabaseClient.from('users').insert([newUser]);
+      if (error) {
+        alert('등록 실패: ' + error.message);
+        return;
+      }
+
       alert(`${name} (${milNumber}) 님이 DB에 등록되었습니다.`);
 
       document.getElementById('adminAddUserForm').reset();
       soldierDatesGroup.style.display = 'flex';
-      renderAdminUserList();
+      await renderAdminUserList();
     });
 
-    renderAdminUserList();
+    await renderAdminUserList();
     showScreen(detailScreen);
   }
 
-  function renderAdminUserList() {
+  async function renderAdminUserList() {
     const listContainer = document.getElementById('adminUserList');
+    
+    const { data: users, error } = await supabaseClient.from('users').select('*');
+    if (error || !users) {
+      listContainer.innerHTML = `<p style="font-size:12px; color:#888;">사용자 목록을 불러오지 못했습니다.</p>`;
+      return;
+    }
+
     document.getElementById('userCount').textContent = users.length;
 
     listContainer.innerHTML = users.map(u => {
@@ -798,22 +839,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
 
     document.querySelectorAll('.edit-user-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const milNumber = e.target.dataset.mil;
-        editUserDB(milNumber);
+        await editUserDB(milNumber);
       });
     });
 
     document.querySelectorAll('.delete-user-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const milNumber = e.target.dataset.mil;
-        deleteUserDB(milNumber);
+        await deleteUserDB(milNumber);
       });
     });
   }
 
-  function editUserDB(milNumber) {
-    const targetUser = users.find(u => u.milNumber === milNumber);
+  async function editUserDB(milNumber) {
+    const { data: targetUser } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('milNumber', milNumber)
+      .maybeSingle();
+
     if (!targetUser) return;
 
     const newName = prompt('수정할 이름을 입력하세요:', targetUser.name);
@@ -825,29 +871,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const newPassword = prompt('수정할 비밀번호를 입력하세요:', targetUser.password);
     if (newPassword === null) return;
 
-    targetUser.name = newName.trim() || targetUser.name;
-    targetUser.unitCode = newUnitCode.trim() || targetUser.unitCode;
-    targetUser.password = newPassword || targetUser.password;
+    const updateData = {
+      name: newName.trim() || targetUser.name,
+      unitCode: newUnitCode.trim() || targetUser.unitCode,
+      password: newPassword || targetUser.password
+    };
 
     if (targetUser.role === 'user') {
       const newEnlist = prompt('수정할 입대일을 입력하세요 (YYYY-MM-DD):', targetUser.enlistDate || '');
-      if (newEnlist !== null) targetUser.enlistDate = newEnlist;
+      if (newEnlist !== null) updateData.enlistDate = newEnlist;
 
       const newDischarge = prompt('수정할 전역예정일을 입력하세요 (YYYY-MM-DD):', targetUser.dischargeDate || '');
-      if (newDischarge !== null) targetUser.dischargeDate = newDischarge;
+      if (newDischarge !== null) updateData.dischargeDate = newDischarge;
     }
 
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    alert(`${targetUser.milNumber} 번 인원의 정보가 수정되었습니다.`);
-    renderAdminUserList();
+    const { error } = await supabaseClient
+      .from('users')
+      .update(updateData)
+      .eq('milNumber', milNumber);
+
+    if (error) {
+      alert('수정 실패: ' + error.message);
+      return;
+    }
+
+    alert(`${milNumber} 번 인원의 정보가 수정되었습니다.`);
+    await renderAdminUserList();
   }
 
-  function deleteUserDB(milNumber) {
+  async function deleteUserDB(milNumber) {
     if (confirm(`군번 [${milNumber}] 인원을 정말 삭제하시겠습니까?`)) {
-      users = users.filter(u => u.milNumber !== milNumber);
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      const { error } = await supabaseClient.from('users').delete().eq('milNumber', milNumber);
+      if (error) {
+        alert('삭제 실패: ' + error.message);
+        return;
+      }
       alert('인원이 DB에서 삭제되었습니다.');
-      renderAdminUserList();
+      await renderAdminUserList();
     }
   }
 
