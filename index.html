@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>방공대 커뮤니티</title>
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --primary-color: #0d6efd;
@@ -29,7 +27,7 @@
     .input-group input { padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 14px; outline: none; }
     .input-group input:focus { border-color: var(--primary-color); }
     
-    .btn { padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn { padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; width: 100%; }
     .btn-primary { background-color: var(--primary-color); color: #fff; }
     .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-color); }
 
@@ -144,19 +142,15 @@
   </div>
 
   <script>
-    // Supabase 설정 (본인의 값 유지)
-    const SUPABASE_URL = 'https://nteyiracltjgeklvvrdj.supabase.co';
-    const SUPABASE_ANON_KEY = 'HOOLiFDzKceWcgX-RlIh9w_UjYnKlHc'; // 본인의 실제 키 입력 완료 상태
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    let currentUser = null;
-
-    // 화면 전환 전용 함수 (가장 확실한 방식)
+    // 화면 전환 함수
     function showView(viewId) {
       const sections = document.querySelectorAll('.view-section');
       sections.forEach(sec => sec.classList.remove('active'));
       
-      document.getElementById(viewId).classList.add('active');
+      const target = document.getElementById(viewId);
+      if (target) {
+        target.classList.add('active');
+      }
 
       const logoutBtn = document.getElementById('logoutBtn');
       if (viewId === 'loginView' || viewId === 'registerView') {
@@ -185,6 +179,7 @@
       const id = document.getElementById('loginId').value.trim();
       const pw = document.getElementById('loginPw').value.trim();
 
+      let currentUser = null;
       if (id === 'admin' && pw === 'admin') {
         currentUser = { id: 'admin', name: '최고관리자', role: 'admin', unit: '본부' };
       } else if (!id || !pw) {
@@ -208,7 +203,6 @@
 
     // 로그아웃
     function tryLogout() {
-      currentUser = null;
       document.getElementById('loginId').value = '';
       document.getElementById('loginPw').value = '';
       showView('loginView');
