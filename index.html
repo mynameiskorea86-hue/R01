@@ -21,25 +21,18 @@
     .header-top .unit { font-size: 13px; color: var(--primary-color); font-weight: 700; margin-bottom: 5px; }
     .header-top h1 { font-size: 22px; font-weight: 700; }
     
-    .hidden { display: none !important; }
+    .view-section { display: none; }
+    .view-section.active { display: flex; flex-direction: column; gap: 15px; }
     
-    /* 인증 폼 스타일 */
-    .auth-form { display: flex; flex-direction: column; gap: 15px; }
     .input-group { display: flex; flex-direction: column; gap: 5px; }
     .input-group label { font-size: 13px; font-weight: 600; color: #495057; }
-    .input-group input, .input-group select, .input-group textarea {
-      padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;
-    }
-    .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--primary-color); }
+    .input-group input { padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 14px; outline: none; }
+    .input-group input:focus { border-color: var(--primary-color); }
     
-    .btn { padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; transition: background 0.2s; }
+    .btn { padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
     .btn-primary { background-color: var(--primary-color); color: #fff; }
-    .btn-primary:hover { background-color: #0b5ed7; }
-    .btn-secondary { background-color: #6c757d; color: #fff; }
     .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-color); }
-    .btn-outline:hover { background-color: #f1f3f5; }
 
-    /* 대시보드 모던 카드 그리드 */
     .profile-card { background: #f1f8ff; border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; text-align: center; }
     .profile-card h3 { font-size: 16px; color: #084298; margin-bottom: 3px; }
     .profile-card p { font-size: 12px; color: #6c757d; }
@@ -47,18 +40,17 @@
     .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
     .menu-card {
       background: #ffffff; border: 1px solid var(--border-color); border-radius: 14px; padding: 20px 15px;
-      text-align: center; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     }
-    .menu-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); border-color: var(--primary-color); }
+    .menu-card:hover { border-color: var(--primary-color); }
     .menu-card .icon { font-size: 24px; }
     .menu-card .title { font-size: 14px; font-weight: 600; color: #343a40; }
 
-    /* 상세 페이지 뷰 */
     .detail-view { margin-top: 15px; }
-    .back-btn { background: none; border: none; color: var(--primary-color); font-weight: 600; cursor: pointer; margin-bottom: 15px; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+    .back-btn { background: none; border: none; color: var(--primary-color); font-weight: 600; cursor: pointer; margin-bottom: 15px; font-size: 14px; }
     
-    footer { margin-top: 25px; text-align: center; display: flex; flex-direction: column; gap: 10px; }
-    .ghost-btn { background: none; border: 1px solid transparent; color: #6c757d; font-size: 13px; cursor: pointer; padding: 5px; }
+    footer { margin-top: 25px; text-align: center; }
+    .ghost-btn { background: none; border: none; color: #dc3545; font-size: 13px; cursor: pointer; padding: 5px; }
   </style>
 </head>
 <body>
@@ -70,7 +62,7 @@
     </div>
 
     <!-- 1. 로그인 뷰 -->
-    <div id="loginView" class="auth-form">
+    <div id="loginView" class="view-section active">
       <div class="input-group">
         <label>군번(아이디)</label>
         <input type="text" id="loginId" placeholder="예: 21-123456">
@@ -79,12 +71,12 @@
         <label>비밀번호</label>
         <input type="password" id="loginPw" placeholder="비밀번호 입력">
       </div>
-      <button class="btn btn-primary" id="loginBtn">로그인</button>
-      <button class="btn btn-outline" id="toRegisterBtn">회원가입</button>
+      <button class="btn btn-primary" onclick="tryLogin()">로그인</button>
+      <button class="btn btn-outline" onclick="showView('registerView')">회원가입</button>
     </div>
 
-    <!-- 2. 회원가입 뷰 (버튼 누르면 나타남) -->
-    <div id="registerView" class="auth-form hidden">
+    <!-- 2. 회원가입 뷰 -->
+    <div id="registerView" class="view-section">
       <div class="input-group">
         <label>군번(아이디)</label>
         <input type="text" id="regId" placeholder="군번 입력">
@@ -98,15 +90,15 @@
         <input type="password" id="regPw" placeholder="비밀번호 설정">
       </div>
       <div class="input-group">
-        <label>소속 부대/본부</label>
+        <label>소속 부대</label>
         <input type="text" id="regUnit" placeholder="예: 본부 / 작전과">
       </div>
-      <button class="btn btn-primary" id="registerSubmitBtn">가입 완료</button>
-      <button class="btn btn-outline" id="backToLoginBtn">돌아가기</button>
+      <button class="btn btn-primary" onclick="tryRegister()">가입 완료</button>
+      <button class="btn btn-outline" onclick="showView('loginView')">돌아가기</button>
     </div>
 
     <!-- 3. 메인 대시보드 뷰 -->
-    <div id="dashboardView" class="hidden">
+    <div id="dashboardView" class="view-section">
       <div class="profile-card">
         <h3 id="welcomeText">사용자님 환영합니다</h3>
         <p id="userRoleText">소속 정보</p>
@@ -133,77 +125,63 @@
           <span class="icon">📢</span>
           <span class="title">공지사항</span>
         </div>
-        <div class="menu-card" id="adminMenuCard" onclick="openMenu('admin')" style="background-color: #f8f9fa;">
+        <div class="menu-card" id="adminMenuCard" onclick="openMenu('admin')">
           <span class="icon">📁</span>
           <span class="title">관리자 DB</span>
         </div>
       </div>
     </div>
 
-    <!-- 4. 상세 기능 페이지 뷰 -->
-    <div id="detailView" class="hidden detail-view">
-      <button class="back-btn" onclick="closeDetail()">← 메인으로 돌아가기</button>
+    <!-- 4. 상세 페이지 뷰 -->
+    <div id="detailView" class="view-section detail-view">
+      <button class="back-btn" onclick="showView('dashboardView')">← 메인으로 돌아가기</button>
       <div id="detailContent"></div>
     </div>
 
     <footer>
-      <button id="logoutBtn" class="ghost-btn hidden" style="color: #dc3545;">로그아웃</button>
+      <button id="logoutBtn" class="ghost-btn" style="display:none;" onclick="tryLogout()">로그아웃</button>
     </footer>
   </div>
 
   <script>
-    // Supabase 설정 (본인의 URL과 Anon Key 입력 완료 상태 유지)
+    // Supabase 설정 (본인의 값 유지)
     const SUPABASE_URL = 'https://nteyiracltjgeklvvrdj.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_HOOLiFDzKceWcgX-RlIh9w_UjYnKlHc'; // 본인의 anon 키를 유지 또는 입력하세요
+    const SUPABASE_ANON_KEY = 'HOOLiFDzKceWcgX-RlIh9w_UjYnKlHc'; // 본인의 실제 키 입력 완료 상태
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
 
-    // 화면 전환 헬퍼 함수
-    function switchView(viewId) {
-      document.getElementById('loginView').classList.add('hidden');
-      document.getElementById('registerView').classList.add('hidden');
-      document.getElementById('dashboardView').classList.add('hidden');
-      document.getElementById('detailView').classList.add('hidden');
+    // 화면 전환 전용 함수 (가장 확실한 방식)
+    function showView(viewId) {
+      const sections = document.querySelectorAll('.view-section');
+      sections.forEach(sec => sec.classList.remove('active'));
       
-      document.getElementById(viewId).classList.remove('hidden');
+      document.getElementById(viewId).classList.add('active');
 
+      const logoutBtn = document.getElementById('logoutBtn');
       if (viewId === 'loginView' || viewId === 'registerView') {
-        document.getElementById('logoutBtn').classList.add('hidden');
+        logoutBtn.style.display = 'none';
       } else {
-        document.getElementById('logoutBtn').classList.remove('hidden');
+        logoutBtn.style.display = 'inline-block';
       }
     }
 
-    // 회원가입 창 열기 버튼 이벤트 연결
-    document.getElementById('toRegisterBtn').addEventListener('click', () => {
-      switchView('registerView');
-    });
-
-    // 로그인 창으로 돌아가기 버튼 이벤트 연결
-    document.getElementById('backToLoginBtn').addEventListener('click', () => {
-      switchView('loginView');
-    });
-
-    // 회원가입 실행
-    document.getElementById('registerSubmitBtn').addEventListener('click', async () => {
+    // 회원가입 처리
+    function tryRegister() {
       const id = document.getElementById('regId').value.trim();
       const name = document.getElementById('regName').value.trim();
       const pw = document.getElementById('regPw').value.trim();
-      const unit = document.getElementById('regUnit').value.trim();
 
       if (!id || !name || !pw) {
         alert('필수 정보를 모두 입력해주세요.');
         return;
       }
-
-      // 로컬 스토리지 기반 테스트용 회원가입 (Supabase 테이블 연동 전 시뮬레이션용)
       alert('회원가입이 완료되었습니다. 로그인해 주세요.');
-      switchView('loginView');
-    });
+      showView('loginView');
+    }
 
-    // 로그인 실행
-    document.getElementById('loginBtn').addEventListener('click', () => {
+    // 로그인 처리
+    function tryLogin() {
       const id = document.getElementById('loginId').value.trim();
       const pw = document.getElementById('loginPw').value.trim();
 
@@ -216,7 +194,6 @@
         currentUser = { id: id, name: '용사', role: 'user', unit: '방공포대' };
       }
 
-      // 대시보드 반영
       document.getElementById('welcomeText').innerText = `${currentUser.name} (${currentUser.role === 'admin' ? '관리자' : '병사'})님 환영합니다`;
       document.getElementById('userRoleText').innerText = `소속: ${currentUser.unit}`;
 
@@ -226,21 +203,20 @@
         document.getElementById('adminMenuCard').style.display = 'none';
       }
 
-      switchView('dashboardView');
-    });
+      showView('dashboardView');
+    }
 
     // 로그아웃
-    document.getElementById('logoutBtn').addEventListener('click', () => {
+    function tryLogout() {
       currentUser = null;
       document.getElementById('loginId').value = '';
       document.getElementById('loginPw').value = '';
-      switchView('loginView');
-    });
+      showView('loginView');
+    }
 
-    // 각 메뉴 상세 페이지 열기
+    // 상세 메뉴 열기
     function openMenu(type) {
-      document.getElementById('dashboardView').classList.add('hidden');
-      document.getElementById('detailView').classList.remove('hidden');
+      showView('detailView');
       const content = document.getElementById('detailContent');
 
       if (type === 'leave') {
@@ -256,12 +232,6 @@
       } else if (type === 'admin') {
         content.innerHTML = `<h3>📁 관리자 DB 제어</h3><p style="margin-top:10px; font-size:14px; color:#555;">데이터 관리 전용 페이지입니다.</p>`;
       }
-    }
-
-    // 메인으로 돌아가기
-    function closeDetail() {
-      document.getElementById('detailView').classList.add('hidden');
-      document.getElementById('dashboardView').classList.remove('hidden');
     }
   </script>
 </body>
